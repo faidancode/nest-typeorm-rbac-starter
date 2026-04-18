@@ -9,21 +9,22 @@ down:
 	docker-compose down -v
 
 logs:
-	docker-compose logs -f hris_mssql_db
+	docker-compose logs -f mssql
 
 # Wait until MSSQL healthy
+# Perhatikan nama database : nest_rbac_mssql_db
 wait-db:
 	@echo "Waiting for MSSQL to be ready..."
-	@powershell -Command "while ((docker inspect --format='{{.State.Health.Status}}' mssql_db) -ne 'healthy') { Start-Sleep -Seconds 3 }"
+	@powershell -Command "while ((docker inspect --format='{{.State.Health.Status}}' nest_rbac_mssql_db) -ne 'healthy') { Start-Sleep -Seconds 3 }"
 
 # Create Database (pakai mssql-tools container)
 # Perhatikan nama --network dan nama -S database
 create-db:
 	MSYS_NO_PATHCONV=1 docker run --rm \
-		--network nest-hris-mssql-type_app_net \ 
+		--network nest-typeorm-rbac-starter_app_net \
 		mcr.microsoft.com/mssql-tools \
 		/opt/mssql-tools/bin/sqlcmd \
-		-S hris_mssql_db -U $(DB_USERNAME) -P $(DB_DOCKER_PASSWORD) \
+		-S nest_rbac_mssql_db -U $(DB_USERNAME) -P $(DB_DOCKER_PASSWORD) \
 		-Q "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '$(DB_DATABASE)') CREATE DATABASE [$(DB_DATABASE)]"
 
 

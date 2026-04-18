@@ -13,6 +13,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         username: configService.getOrThrow('DB_USERNAME'),
         password: configService.getOrThrow('DB_PASSWORD'),
         autoLoadEntities: true,
+
+        options: {
+          encrypt: true,
+          trustServerCertificate: true,
+        },
       }),
       inject: [ConfigService],
     }),

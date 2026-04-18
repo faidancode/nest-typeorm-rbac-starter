@@ -18,9 +18,9 @@ export const EnvSchema = z.object({
     .string()
     .transform((v) => parseInt(v, 10))
     .default(3306),
-  DB_USER: z.string().min(1),
+  DB_USERNAME: z.string().min(1),
   DB_PASSWORD: z.string().min(1),
-  DB_NAME: z.string().min(1),
+  DB_DATABASE: z.string().min(1),
   DATABASE_URL: z.string().min(1),
 
   CLIENT_URL: z.string().min(1),

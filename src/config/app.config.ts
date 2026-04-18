@@ -46,9 +46,9 @@ export class AppConfig {
     return {
       host: this.config.get('DB_HOST', { infer: true }),
       port: this.config.get('DB_PORT', { infer: true }),
-      user: this.config.get('DB_USER', { infer: true }),
+      user: this.config.get('DB_USERNAME', { infer: true }),
       password: this.config.get('DB_PASSWORD', { infer: true }),
-      database: this.config.get('DB_NAME', { infer: true }),
+      database: this.config.get('DB_DATABASE', { infer: true }),
     };
   }
 
