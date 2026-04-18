@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: nest_rbac_typeorm_starter
+    env_file:
+      - .env
+    ports:
+      - "${DB_PORT}:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${DB_DOCKER_PASSWORD}
+      - MSSQL_PID=Developer
+    volumes:
+      - mssql_data:/var/opt/mssql
+    networks:
+      - app_net
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/1433"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: always
+
+volumes:
+  mssql_data:
+
+networks:
+  app_net:
