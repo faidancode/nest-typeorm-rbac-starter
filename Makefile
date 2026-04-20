@@ -28,8 +28,34 @@ create-db:
 		-Q "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '$(DB_DATABASE)') CREATE DATABASE [$(DB_DATABASE)]"
 
 
-migrate:
-	pnpm typeorm:run-migrations
+
+# Run all pending migrations
+migrate-up:
+	pnpm migration:run
+
+# Rollback last migration
+migrate-down:
+	pnpm migration:revert
+
+# Create empty migration file (usage: make migrate-create name=AddUserTable)
+migrate-create:
+	pnpm migration:create $(MIGRATION_DIR)/$(name)
+
+# Generate migration based on entity changes (usage: make migrate-gen name=AddIsActive)
+migrate-gen:
+	pnpm migration:generate $(MIGRATION_DIR)/$(name)
+
+# RESET DATABASE: Drop all tables and rerun all migrations
+migrate-reset:
+	pnpm schema:drop
+	pnpm migration:run
+
+# Refresh database schema (Sync without migrations - useful for local dev)
+db-sync:
+	pnpm schema:sync
+
+.PHONY: migrate-up migrate-down migrate-create migrate-gen migrate-reset db-sync
+
 
 # Clean start
 reset-db:
