@@ -5,6 +5,7 @@ import { DatabaseModule } from './database/database.module';
 import { ConfigModule } from '@nestjs/config';
 import { validateEnv } from './config/env.schema';
 import { AppConfigModule } from './config/app-config.module';
+import { DepartmentsModule } from './department/department.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AppConfigModule } from './config/app-config.module';
     }),
     AppConfigModule,
     DatabaseModule,
+    DepartmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
