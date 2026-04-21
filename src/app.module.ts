@@ -9,6 +9,7 @@ import { DepartmentsModule } from './department/department.module';
 import { RoleModule } from './role/role.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
+import { PositionModule } from './position/position.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { UserModule } from './user/user.module';
     RoleModule,
     AuthModule,
     UserModule,
+    PositionModule,
   ],
   controllers: [AppController],
   providers: [AppService],
