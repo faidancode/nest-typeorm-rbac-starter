@@ -3,6 +3,9 @@ import { DepartmentController } from './department.controller';
 import { DepartmentService } from './department.service';
 import { randomUUID } from 'crypto';
 import { NotFoundException, ConflictException } from '@nestjs/common';
+import { JwtAuthGuard } from 'src/auth/jwt.guard';
+import { PoliciesGuard } from 'src/common/casl/policies.guard';
+import { CaslAbilityFactory } from 'src/common/casl/casl-ability.factory';
 
 describe('DepartmentControllerTest', () => {
   let controller: DepartmentController;
@@ -10,6 +13,11 @@ describe('DepartmentControllerTest', () => {
 
   const mockId = randomUUID();
   const mockDepartment = { id: mockId, name: 'IT' };
+  const allowReq = {
+    ability: {
+      can: jest.fn().mockReturnValue(true),
+    },
+  };
 
   beforeEach(async () => {
     const serviceMock: Partial<Record<keyof DepartmentService, any>> = {
@@ -26,6 +34,20 @@ describe('DepartmentControllerTest', () => {
         {
           provide: DepartmentService,
           useValue: serviceMock,
+        },
+        {
+          provide: JwtAuthGuard,
+          useValue: { canActivate: () => true },
+        },
+        {
+          provide: PoliciesGuard,
+          useValue: { canActivate: () => true },
+        },
+        {
+          provide: CaslAbilityFactory,
+          useValue: {
+            createForUser: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -59,13 +81,13 @@ describe('DepartmentControllerTest', () => {
   describe('DepartmentController_FindOne', () => {
     it('should return a department (Positive)', async () => {
       service.findOne.mockResolvedValue(mockDepartment as any);
-      const result = await controller.findOne(mockId);
+      const result = await controller.findOne(mockId, allowReq as any);
       expect(result).toEqual(mockDepartment);
     });
 
     it('should return 404 if not found (Negative)', async () => {
       service.findOne.mockRejectedValue(new NotFoundException());
-      await expect(controller.findOne(mockId)).rejects.toThrow(
+      await expect(controller.findOne(mockId, allowReq as any)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -76,7 +98,7 @@ describe('DepartmentControllerTest', () => {
       const body = { name: 'Updated IT' };
       service.update.mockResolvedValue({ ...mockDepartment, ...body } as any);
 
-      const result = await controller.update(mockId, body);
+      const result = await controller.update(mockId, body, allowReq as any);
       expect(result.name).toBe('Updated IT');
     });
   });
@@ -84,7 +106,7 @@ describe('DepartmentControllerTest', () => {
   describe('DepartmentController_Remove', () => {
     it('should successfully remove (Positive)', async () => {
       service.remove.mockResolvedValue(undefined);
-      const result = await controller.remove(mockId);
+      const result = await controller.remove(mockId, allowReq as any);
       expect(result).toBeUndefined();
       expect(service.remove).toHaveBeenCalledWith(mockId);
     });
