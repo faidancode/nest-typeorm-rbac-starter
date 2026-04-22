@@ -52,7 +52,7 @@ describe('PositionServiceTest', () => {
   });
 
   describe('PositionService_Create', () => {
-    const payload = { name: 'Software Engineer' };
+    const payload = { name: 'Software Engineer', departmentId: randomUUID() };
 
     it('should create a new position successfully (Positive)', async () => {
       positionRepo.findOne.mockResolvedValue(null);

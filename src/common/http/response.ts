@@ -32,6 +32,21 @@ export function ok<T = unknown>(
   };
 }
 
+export function createPaginationMeta(
+  page: number,
+  limit: number,
+  total: number,
+): PaginationMeta {
+  const safeLimit = Math.max(limit, 1);
+
+  return {
+    page,
+    limit,
+    total,
+    totalPages: total === 0 ? 0 : Math.ceil(total / safeLimit),
+  };
+}
+
 export function okNoContent(): ResponseEnvelope<null> {
   return {
     ok: true,
