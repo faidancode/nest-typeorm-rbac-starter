@@ -1,16 +1,33 @@
 import { DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
+import type { DbConfig } from 'src/config/app.config';
 
 dotenv.config();
 
-export function getTypeOrmOptions(): DataSourceOptions {
+function resolveDbConfig(dbConfig?: DbConfig) {
+  if (dbConfig) {
+    return dbConfig;
+  }
+
   return {
-    type: 'mssql',
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT),
     database: process.env.DB_DATABASE,
-    username: process.env.DB_USERNAME,
+    user: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
+  };
+}
+
+export function getTypeOrmOptions(dbConfig?: DbConfig): DataSourceOptions {
+  const source = resolveDbConfig(dbConfig);
+
+  return {
+    type: 'mssql',
+    host: source.host,
+    port: source.port,
+    database: source.database,
+    username: source.user,
+    password: source.password,
     options: {
       encrypt: true,
       trustServerCertificate: true,

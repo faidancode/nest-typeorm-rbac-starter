@@ -5,12 +5,15 @@ import { DatabaseModule } from './database/database.module';
 import { ConfigModule } from '@nestjs/config';
 import { validateEnv } from './config/env.schema';
 import { AppConfigModule } from './config/app-config.module';
+import { RequestContextModule } from './common/context/request-context.module';
 import { DepartmentsModule } from './department/department.module';
 import { RoleModule } from './role/role.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { PositionModule } from './position/position.module';
 import { EmployeeModule } from './employee/employee.module';
+import { HealthController } from './health/health.controller';
+import { HttpExceptionFilter } from './common/http/http-exception.filter';
 
 @Module({
   imports: [
@@ -20,6 +23,7 @@ import { EmployeeModule } from './employee/employee.module';
       validate: validateEnv,
     }),
     AppConfigModule,
+    RequestContextModule,
     DatabaseModule,
     DepartmentsModule,
     RoleModule,
@@ -28,7 +32,7 @@ import { EmployeeModule } from './employee/employee.module';
     PositionModule,
     EmployeeModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, HealthController],
+  providers: [AppService, HttpExceptionFilter],
 })
 export class AppModule {}

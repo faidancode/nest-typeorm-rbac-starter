@@ -42,7 +42,6 @@ export class AppConfig {
   }
 
   get db(): DbConfig {
-    console.log('db config');
     return {
       host: this.config.get('DB_HOST', { infer: true }),
       port: this.config.get('DB_PORT', { infer: true }),

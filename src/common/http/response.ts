@@ -7,6 +7,11 @@ export interface PaginationMeta {
   totalPages?: number;
 }
 
+export interface PaginatedResponse<T = unknown> {
+  items: T;
+  meta?: PaginationMeta | null;
+}
+
 export interface ResponseError {
   code: string;
   message: string;
