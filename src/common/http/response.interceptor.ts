@@ -8,12 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { ok, type PaginationMeta, type ResponseEnvelope } from './response';
-
-type PaginatedResponse<T = unknown> = {
-  items: T;
-  meta?: PaginationMeta | null;
-};
+import { ok, type PaginatedResponse, type ResponseEnvelope } from './response';
 
 function isResponseEnvelope(value: unknown): value is ResponseEnvelope {
   if (!value || typeof value !== 'object') {

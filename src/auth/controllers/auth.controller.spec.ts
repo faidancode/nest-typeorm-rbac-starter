@@ -93,18 +93,19 @@ describe('AuthControllerTest', () => {
       const refreshToken = 'valid-refresh-token';
       service.refreshAccessToken.mockResolvedValue(mockAuthResult as any);
 
-      const result = await controller.refresh(refreshToken);
+      const result = await controller.refresh({ refreshToken });
 
       expect(service.refreshAccessToken).toHaveBeenCalledWith(refreshToken);
       expect(result).toEqual(mockAuthResult);
     });
 
     it('should throw UnauthorizedException for invalid refresh token (Negative)', async () => {
+      const refreshToken = 'invalid-token';
       service.refreshAccessToken.mockRejectedValue(
         new UnauthorizedException('Invalid refresh token'),
       );
 
-      await expect(controller.refresh('invalid-token')).rejects.toThrow(
+      await expect(controller.refresh({ refreshToken })).rejects.toThrow(
         UnauthorizedException,
       );
     });

@@ -97,10 +97,10 @@ describe('EmployeesController', () => {
     it('should return employees with pagination meta', async () => {
       const query = {
         search: 'Jane',
-        isActive: 'true',
+        isActive: true,
         sort: 'fullName:asc',
-        page: '2',
-        limit: '5',
+        page: 2,
+        limit: 5,
       };
 
       const mockResult = {

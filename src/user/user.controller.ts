@@ -6,7 +6,6 @@ import {
   Patch,
   Param,
   Delete,
-  ParseUUIDPipe,
   UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
@@ -14,6 +13,8 @@ import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { PoliciesGuard } from 'src/common/casl/policies.guard';
 import { CheckPolicies } from 'src/common/casl/check-policies.decorator';
 import { Action } from 'src/common/casl/action.enum';
+import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
+import { UuidSchema } from 'src/common/schemas/common.schemas';
 import {
   CreateUserSchema,
   UpdateUserSchema,
@@ -28,8 +29,8 @@ export class UserController {
 
   @Post()
   @CheckPolicies((ability) => ability.can(Action.Create, 'user'))
-  create(@Body() data: CreateUserDto) {
-    return this.userService.create(CreateUserSchema.parse(data));
+  create(@Body(new ZodValidationPipe(CreateUserSchema)) data: CreateUserDto) {
+    return this.userService.create(data);
   }
 
   @Get()
@@ -40,19 +41,22 @@ export class UserController {
 
   @Get(':id')
   @CheckPolicies((ability) => ability.can(Action.Read, 'user'))
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
+  findOne(@Param('id', new ZodValidationPipe(UuidSchema)) id: string) {
     return this.userService.findOne(id);
   }
 
   @Patch(':id')
   @CheckPolicies((ability) => ability.can(Action.Update, 'user'))
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdateUserDto) {
-    return this.userService.update(id, UpdateUserSchema.parse(data));
+  update(
+    @Param('id', new ZodValidationPipe(UuidSchema)) id: string,
+    @Body(new ZodValidationPipe(UpdateUserSchema)) data: UpdateUserDto,
+  ) {
+    return this.userService.update(id, data);
   }
 
   @Delete(':id')
   @CheckPolicies((ability) => ability.can(Action.Delete, 'user'))
-  remove(@Param('id', ParseUUIDPipe) id: string) {
+  remove(@Param('id', new ZodValidationPipe(UuidSchema)) id: string) {
     return this.userService.remove(id);
   }
 }

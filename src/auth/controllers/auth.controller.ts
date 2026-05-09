@@ -11,6 +11,13 @@ import {
 import { AuthService } from '../services/auth.service';
 import { JwtAuthGuard } from '../jwt.guard';
 import { CaslAbilityFactory } from 'src/common/casl/casl-ability.factory';
+import {
+  LoginSchema,
+  RefreshTokenSchema,
+  type LoginDto,
+  type RefreshTokenDto,
+} from '../schemas/auth.schemas';
+import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 
 @Controller('auth')
 export class AuthController {
@@ -21,13 +28,17 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: any) {
+  async login(@Body(new ZodValidationPipe(LoginSchema)) dto: LoginDto) {
     return await this.authService.login(dto);
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Body('refreshToken') refreshToken: string) {
+  async refresh(
+    @Body(new ZodValidationPipe(RefreshTokenSchema))
+    body: RefreshTokenDto,
+  ) {
+    const { refreshToken } = body;
     return await this.authService.refreshAccessToken(refreshToken);
   }
 

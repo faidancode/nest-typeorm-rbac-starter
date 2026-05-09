@@ -1,12 +1,12 @@
 import {
   Injectable,
-  BadRequestException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config'; // Opsional jika pakai ConfigService
 import { UserRepository } from '../../user/repositories/user.repository';
+import type { LoginDto } from '../schemas/auth.schemas';
 
 @Injectable()
 export class AuthService {
@@ -20,7 +20,7 @@ export class AuthService {
     return await this.userRepo.findOne({ where: { email } });
   }
 
-  async login(dto: any) {
+  async login(dto: LoginDto) {
     const user = await this.findByEmail(dto.email);
     if (!user) {
       throw new UnauthorizedException('Email atau password salah');

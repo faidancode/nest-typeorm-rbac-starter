@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { VersioningType } from '@nestjs/common';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { ResponseEnvelopeInterceptor } from './common/http/response.interceptor';
@@ -16,6 +17,10 @@ async function bootstrap() {
   app.enableCors({
     origin: appConfig.cors.origins.includes('*') ? true : appConfig.cors.origins,
     credentials: appConfig.cors.credentials,
+  });
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
   });
   app.use(
     createRequestIdMiddleware(requestContext, appConfig.requestIdHeader),

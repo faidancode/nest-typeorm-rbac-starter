@@ -6,7 +6,6 @@ import {
   Patch,
   Param,
   Delete,
-  ParseUUIDPipe,
   Req,
   UseGuards,
   ForbiddenException,
@@ -17,6 +16,8 @@ import { PoliciesGuard } from 'src/common/casl/policies.guard';
 import { CheckPolicies } from 'src/common/casl/check-policies.decorator';
 import { Action } from 'src/common/casl/action.enum';
 import { subject } from 'src/common/casl/subject.helper';
+import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
+import { UuidSchema } from 'src/common/schemas/common.schemas';
 import {
   CreateDepartmentSchema,
   UpdateDepartmentSchema,
@@ -32,8 +33,8 @@ export class DepartmentController {
 
   @Post()
   @CheckPolicies((ability) => ability.can(Action.Create, 'department'))
-  create(@Body() data: CreateDepartmentDto) {
-    return this.departmentService.create(CreateDepartmentSchema.parse(data));
+  create(@Body(new ZodValidationPipe(CreateDepartmentSchema)) data: CreateDepartmentDto) {
+    return this.departmentService.create(data);
   }
 
   @Get()
@@ -45,7 +46,7 @@ export class DepartmentController {
   @Get(':id')
   @CheckPolicies((ability) => ability.can(Action.Read, 'department'))
   async findOne(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', new ZodValidationPipe(UuidSchema)) id: string,
     @Req() req: RequestWithAbility,
   ) {
     const department = await this.departmentService.findOne(id);
@@ -60,8 +61,8 @@ export class DepartmentController {
   @Patch(':id')
   @CheckPolicies((ability) => ability.can(Action.Update, 'department'))
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() data: UpdateDepartmentDto,
+    @Param('id', new ZodValidationPipe(UuidSchema)) id: string,
+    @Body(new ZodValidationPipe(UpdateDepartmentSchema)) data: UpdateDepartmentDto,
     @Req() req: RequestWithAbility,
   ) {
     const department = await this.departmentService.findOne(id);
@@ -69,17 +70,13 @@ export class DepartmentController {
     if (!req.ability?.can(Action.Update, subject('department', department))) {
       throw new ForbiddenException();
     }
-
-    return this.departmentService.update(
-      id,
-      UpdateDepartmentSchema.parse(data),
-    );
+    return this.departmentService.update(id, data);
   }
 
   @Delete(':id')
   @CheckPolicies((ability) => ability.can(Action.Delete, 'department'))
   async remove(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', new ZodValidationPipe(UuidSchema)) id: string,
     @Req() req: RequestWithAbility,
   ) {
     const department = await this.departmentService.findOne(id);

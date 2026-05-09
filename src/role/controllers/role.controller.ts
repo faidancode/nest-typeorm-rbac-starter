@@ -23,6 +23,8 @@ import { JwtAuthGuard } from '../../auth/jwt.guard';
 import { PoliciesGuard } from '../../common/casl/policies.guard';
 import { CheckPolicies } from '../../common/casl/check-policies.decorator';
 import { Action } from '../../common/casl/action.enum';
+import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
+import { UuidSchema } from 'src/common/schemas/common.schemas';
 
 @Controller('roles')
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -31,9 +33,8 @@ export class RoleController {
 
   @Post()
   @CheckPolicies((ability) => ability.can(Action.Create, 'role'))
-  create(@Body() body: CreateRoleDto) {
-    const payload = CreateRoleSchema.parse(body);
-    return this.service.create(payload);
+  create(@Body(new ZodValidationPipe(CreateRoleSchema)) body: CreateRoleDto) {
+    return this.service.create(body);
   }
 
   @Get()
@@ -44,27 +45,32 @@ export class RoleController {
 
   @Get(':id')
   @CheckPolicies((ability) => ability.can(Action.Read, 'role'))
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', new ZodValidationPipe(UuidSchema)) id: string) {
     return this.service.findById(id);
   }
 
   @Patch(':id')
   @CheckPolicies((ability) => ability.can(Action.Update, 'role'))
-  update(@Param('id') id: string, @Body() body: UpdateRoleDto) {
-    const payload = UpdateRoleSchema.parse(body);
-    return this.service.update(id, payload);
+  update(
+    @Param('id', new ZodValidationPipe(UuidSchema)) id: string,
+    @Body(new ZodValidationPipe(UpdateRoleSchema)) body: UpdateRoleDto,
+  ) {
+    return this.service.update(id, body);
   }
 
   @Delete(':id')
   @CheckPolicies((ability) => ability.can(Action.Delete, 'role'))
-  remove(@Param('id') id: string) {
+  remove(@Param('id', new ZodValidationPipe(UuidSchema)) id: string) {
     return this.service.remove(id);
   }
 
   @Post(':id/permissions')
   @CheckPolicies((ability) => ability.can(Action.Update, 'role'))
-  assignPermissions(@Param('id') id: string, @Body() body: AssignPermissionsDto) {
-    const payload = AssignPermissionsSchema.parse(body);
-    return this.service.assignPermissions(id, payload);
+  assignPermissions(
+    @Param('id', new ZodValidationPipe(UuidSchema)) id: string,
+    @Body(new ZodValidationPipe(AssignPermissionsSchema))
+    body: AssignPermissionsDto,
+  ) {
+    return this.service.assignPermissions(id, body);
   }
 }
