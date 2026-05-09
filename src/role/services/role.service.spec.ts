@@ -4,6 +4,7 @@ import { RoleService } from './role.service';
 import { RoleRepository } from '../repositories/role.repository';
 import { PermissionRepository } from '../repositories/permission.repository';
 import { CreateRoleDto, UpdateRoleDto, AssignPermissionsDto } from '../schemas/role.schemas';
+import { AuditService } from 'src/common/logging/audit.service';
 
 describe('RoleServiceTest', () => {
   let service: RoleService;
@@ -37,6 +38,12 @@ describe('RoleServiceTest', () => {
         {
           provide: PermissionRepository,
           useValue: permissionRepo,
+        },
+        {
+          provide: AuditService,
+          useValue: {
+            record: jest.fn(),
+          },
         },
       ],
     }).compile();

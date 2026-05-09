@@ -9,10 +9,14 @@ import type {
   CreatePositionDto,
   UpdatePositionDto,
 } from './schemas/position.schemas';
+import { AuditService } from 'src/common/logging/audit.service';
 
 @Injectable()
 export class PositionService {
-  constructor(private readonly positionRepo: PositionRepository) {}
+  constructor(
+    private readonly positionRepo: PositionRepository,
+    private readonly audit: AuditService,
+  ) {}
 
   async create(data: CreatePositionDto): Promise<Position> {
     const existing = await this.positionRepo.findOne({
@@ -22,7 +26,16 @@ export class PositionService {
       throw new ConflictException('Position name already exists');
     }
     const position = this.positionRepo.create(data);
-    return await this.positionRepo.save(position);
+    const saved = await this.positionRepo.save(position);
+
+    this.audit.record({
+      action: 'create',
+      resource: 'position',
+      resourceId: saved.id,
+      after: saved,
+    });
+
+    return saved;
   }
 
   async findAll(): Promise<Position[]> {
@@ -39,6 +52,7 @@ export class PositionService {
 
   async update(id: string, data: UpdatePositionDto): Promise<Position> {
     const position = await this.findOne(id);
+    const before = { ...position };
 
     if (data.name && data.name !== position.name) {
       const existing = await this.positionRepo.findOne({
@@ -49,11 +63,27 @@ export class PositionService {
     }
 
     Object.assign(position, data);
-    return await this.positionRepo.save(position);
+    const saved = await this.positionRepo.save(position);
+
+    this.audit.record({
+      action: 'update',
+      resource: 'position',
+      resourceId: id,
+      before,
+      after: saved,
+    });
+
+    return saved;
   }
 
   async remove(id: string): Promise<void> {
     const position = await this.findOne(id);
+    this.audit.record({
+      action: 'delete',
+      resource: 'position',
+      resourceId: id,
+      before: position,
+    });
     await this.positionRepo.softRemove(position);
   }
 }

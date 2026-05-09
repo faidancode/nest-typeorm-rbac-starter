@@ -3,6 +3,7 @@ import { PositionService } from './position.service';
 import { PositionRepository } from './repositories/position.repository';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { AuditService } from 'src/common/logging/audit.service';
 
 describe('PositionServiceTest', () => {
   let service: PositionService;
@@ -38,6 +39,12 @@ describe('PositionServiceTest', () => {
         {
           provide: PositionRepository,
           useValue: positionRepo,
+        },
+        {
+          provide: AuditService,
+          useValue: {
+            record: jest.fn(),
+          },
         },
       ],
     }).compile();

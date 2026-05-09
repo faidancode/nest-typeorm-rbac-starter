@@ -14,29 +14,29 @@ Legenda:
 | Area | Status | Catatan |
 | --- | --- | --- |
 | API response envelope | Done | Sudah ada `ResponseEnvelopeInterceptor` dan helper response. |
-| Business error code | Todo | Belum ada mapping error terpusat. |
-| Versioning API | Todo | Belum ada strategi versioning di bootstrap atau route. |
+| Business error code | Done | Sudah ada kode error terpusat di exception filter untuk kasus umum. |
+| Versioning API | Done | Sudah aktif via URI versioning di bootstrap (`/v1`). |
 | JWT authentication | Done | `JwtStrategy`, `JwtAuthGuard`, dan login/refresh endpoint sudah ada. |
 | RBAC | Done | CASL guard dan policy check sudah diterapkan. |
 | Refresh token flow | Partial | Endpoint refresh ada, tetapi belum ada storage, rotation, atau revocation strategy. |
 | Secure cookie/header strategy | Partial | Token masih dikembalikan di body; belum ada pengaturan cookie httpOnly/secure. |
-| Request ID | Todo | Belum ada middleware, context propagation, atau log correlation. |
+| Request ID | Done | Sudah ada request ID middleware, request context, dan correlation ke log. |
 | Idempotency key | Todo | Belum ada mekanisme untuk request sensitif. |
-| Validation body/query/path | Partial | Ada Zod schema dan `ParseUUIDPipe`, tetapi belum global dan belum seragam di semua controller. |
+| Validation body/query/path | Done | Sudah ada `ZodValidationPipe`, `UuidSchema`, dan validasi seragam di controller utama. |
 | Pagination/filter/sort | Partial | Ada di employee list, belum seragam untuk resource lain. |
-| Centralized error handling | Todo | Belum ada exception filter / error mapper terpusat. |
-| Structured logging | Todo | Belum ada logger terstruktur dan correlation field. |
+| Centralized error handling | Done | Sudah ada exception filter terpusat yang membungkus error ke envelope seragam. |
+| Structured logging | Done | Sudah ada logger JSON dengan `requestId` dan `userId`. |
 | Transaction boundary | Partial | Sudah ada pada employee create/update, belum menjadi pola baku. |
 | Async/event processing | Todo | Belum ada consumer, event id, atau idempotent handler. |
-| Rate limiting | Todo | Dependency belum dipakai di bootstrap. |
-| Timeout/context propagation | Todo | Belum ada request timeout dan context async. |
-| Audit log | Todo | Belum ada audit trail untuk aksi kritikal. |
+| Rate limiting | Done | Sudah ada global rate limit per IP dan limit lebih ketat untuk login. |
+| Timeout/context propagation | Partial | Sudah ada request timeout dan context request, tetapi belum ada cancellation propagation ke DB/async job. |
+| Audit log | Done | Sudah ada audit log business-level untuk aksi write penting. |
 | Config via env | Done | `ConfigModule.forRoot` dan schema validasi sudah ada. |
 | Startup config validation | Done | `validateEnv` menolak env yang tidak valid. |
-| Health/readiness endpoint | Todo | Belum ada `/health` dan `/ready`. |
+| Health/readiness endpoint | Done | Sudah ada `/health` dan `/ready`. |
 | Swagger/OpenAPI | Partial | Dependency dan flag config ada, tetapi bootstrap dokumentasi belum terlihat. |
 | Testing coverage | Partial | Unit dan controller test sudah ada, tetapi belum lengkap untuk production concerns. |
-| Graceful shutdown | Todo | Belum ada `enableShutdownHooks()` atau handling signal. |
+| Graceful shutdown | Done | `enableShutdownHooks()` sudah diaktifkan di bootstrap. |
 | Docker-friendly startup | Partial | Dasar konfigurasi ada, tetapi bootstrap masih membaca `process.env` langsung di beberapa tempat. |
 
 ## Temuan Utama
@@ -191,4 +191,3 @@ Implementasi dianggap selesai bila:
 - bootstrap utama sudah mencakup security, validation, logging, dan readiness.
 - error response dan success response konsisten di seluruh API.
 - healthcheck, Swagger, dan release behavior sudah bisa dipakai di environment production.
-

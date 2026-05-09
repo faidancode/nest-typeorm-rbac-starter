@@ -4,12 +4,12 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
-  Logger,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ZodError } from 'zod';
 import { fail } from './response';
 import { RequestContextService } from '../context/request-context.service';
+import { AppLoggerService } from '../logging/app-logger.service';
 
 function getBusinessCode(status: number): string {
   switch (status) {
@@ -58,9 +58,10 @@ function extractMessageAndDetails(exception: HttpException) {
 @Catch()
 @Injectable()
 export class HttpExceptionFilter {
-  private readonly logger = new Logger(HttpExceptionFilter.name);
-
-  constructor(private readonly requestContext: RequestContextService) {}
+  constructor(
+    private readonly requestContext: RequestContextService,
+    private readonly logger: AppLoggerService,
+  ) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -70,9 +71,11 @@ export class HttpExceptionFilter {
     const context = this.requestContext.getSnapshot();
 
     if (exception instanceof ZodError) {
-      this.logger.warn(
-        `Validation error${requestId ? ` [${requestId}]` : ''}`,
-      );
+      this.logger.warn({
+        event: 'validation_error',
+        message: 'Invalid request payload',
+        issues: exception.issues,
+      });
 
       response.status(HttpStatus.BAD_REQUEST).json(
         fail('VALIDATION_ERROR', 'Invalid request payload', {
@@ -88,11 +91,14 @@ export class HttpExceptionFilter {
       const { message, details } = extractMessageAndDetails(exception);
 
       if (status >= 500) {
-        this.logger.error(
-          `${exception.name}${requestId ? ` [${requestId}]` : ''}`,
-          exception.stack,
-          context ? JSON.stringify(context) : undefined,
-        );
+        this.logger.error({
+          event: 'http_exception',
+          message: exception.message,
+          exceptionName: exception.name,
+          stack: exception.stack,
+          context,
+          status,
+        });
       }
 
       response
@@ -110,11 +116,13 @@ export class HttpExceptionFilter {
     const error =
       exception instanceof Error ? exception : new Error('Unknown error');
 
-    this.logger.error(
-      `${error.name}${requestId ? ` [${requestId}]` : ''}`,
-      error.stack,
-      context ? JSON.stringify(context) : undefined,
-    );
+    this.logger.error({
+      event: 'unhandled_error',
+      message: error.message,
+      exceptionName: error.name,
+      stack: error.stack,
+      context,
+    });
 
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       fail('INTERNAL_SERVER_ERROR', 'Internal server error', {

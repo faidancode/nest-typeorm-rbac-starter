@@ -11,7 +11,8 @@ import { PositionHistory } from './entities/position-history.entity';
 import {
   createPaginationMeta,
   type PaginatedResponse,
-} from 'src/common/http/response';
+} from '../common/http/response';
+import { AuditService } from '../common/logging/audit.service';
 import type {
   CreateEmployeeDto,
   ListEmployeeDto,
@@ -23,6 +24,7 @@ export class EmployeeService {
   constructor(
     private readonly employeeRepo: EmployeeRepository,
     private readonly dataSource: DataSource,
+    private readonly audit: AuditService,
   ) {}
 
   async create(data: CreateEmployeeDto): Promise<Employee> {
@@ -43,6 +45,14 @@ export class EmployeeService {
       });
 
       await queryRunner.commitTransaction();
+
+      this.audit.record({
+        action: 'create',
+        resource: 'employee',
+        resourceId: savedEmployee.id,
+        after: savedEmployee,
+      });
+
       return savedEmployee;
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -164,6 +174,7 @@ export class EmployeeService {
   async update(id: string, data: UpdateEmployeeDto): Promise<Employee> {
     const employee = await this.findOne(id);
     const oldPositionId = employee.positionId;
+    const before = { ...employee };
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -192,6 +203,15 @@ export class EmployeeService {
       }
 
       await queryRunner.commitTransaction();
+
+      this.audit.record({
+        action: 'update',
+        resource: 'employee',
+        resourceId: id,
+        before,
+        after: updatedEmployee,
+      });
+
       return updatedEmployee;
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -203,6 +223,12 @@ export class EmployeeService {
 
   async remove(id: string): Promise<void> {
     const employee = await this.findOne(id);
+    this.audit.record({
+      action: 'delete',
+      resource: 'employee',
+      resourceId: id,
+      before: employee,
+    });
     await this.employeeRepo.softRemove(employee);
   }
 }

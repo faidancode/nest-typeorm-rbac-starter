@@ -3,6 +3,7 @@ import { DepartmentService } from './department.service';
 import { DepartmentRepository } from './repositories/department.repository';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { AuditService } from 'src/common/logging/audit.service';
 
 describe('DepartmentServiceTest', () => {
   let service: DepartmentService;
@@ -37,6 +38,12 @@ describe('DepartmentServiceTest', () => {
         {
           provide: DepartmentRepository,
           useValue: departmentRepo,
+        },
+        {
+          provide: AuditService,
+          useValue: {
+            record: jest.fn(),
+          },
         },
       ],
     }).compile();

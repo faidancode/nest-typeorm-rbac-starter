@@ -6,6 +6,7 @@ import { NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { Employee } from './entities/employee.entity';
 import { PositionHistory } from './entities/position-history.entity';
+import { AuditService } from '../common/logging/audit.service';
 
 describe('EmployeeService', () => {
   let service: EmployeeService;
@@ -66,6 +67,12 @@ describe('EmployeeService', () => {
           useValue: {
             createQueryRunner: jest.fn().mockReturnValue(queryRunner),
             getRepository: jest.fn(),
+          },
+        },
+        {
+          provide: AuditService,
+          useValue: {
+            record: jest.fn(),
           },
         },
       ],

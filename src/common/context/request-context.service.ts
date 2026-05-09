@@ -24,8 +24,18 @@ export class RequestContextService {
     this.storage.getStore()?.set(key, value);
   }
 
+  setUserId(userId: string | undefined): void {
+    if (userId) {
+      this.set('userId', userId);
+    }
+  }
+
   getRequestId(): string | undefined {
     return this.get<string>('requestId');
+  }
+
+  getUserId(): string | undefined {
+    return this.get<string>('userId');
   }
 
   getSnapshot(): RequestContextState | undefined {

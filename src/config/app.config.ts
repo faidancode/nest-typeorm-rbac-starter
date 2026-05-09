@@ -100,4 +100,8 @@ export class AppConfig {
   get requestIdHeader(): string {
     return this.config.get('REQUEST_ID_HEADER', { infer: true });
   }
+
+  get requestTimeoutMs(): number {
+    return this.config.get('REQUEST_TIMEOUT_MS', { infer: true });
+  }
 }

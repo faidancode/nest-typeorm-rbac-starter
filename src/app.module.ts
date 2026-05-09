@@ -6,6 +6,8 @@ import { ConfigModule } from '@nestjs/config';
 import { validateEnv } from './config/env.schema';
 import { AppConfigModule } from './config/app-config.module';
 import { RequestContextModule } from './common/context/request-context.module';
+import { LoggingModule } from './common/logging/logging.module';
+import { RateLimitModule } from './common/rate-limit/rate-limit.module';
 import { DepartmentsModule } from './department/department.module';
 import { RoleModule } from './role/role.module';
 import { AuthModule } from './auth/auth.module';
@@ -24,6 +26,8 @@ import { HttpExceptionFilter } from './common/http/http-exception.filter';
     }),
     AppConfigModule,
     RequestContextModule,
+    LoggingModule,
+    RateLimitModule,
     DatabaseModule,
     DepartmentsModule,
     RoleModule,

@@ -4,6 +4,7 @@ import { UserRepository } from './repositories/user.repository';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import * as bcrypt from 'bcrypt';
+import { AuditService } from 'src/common/logging/audit.service';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn(),
@@ -44,6 +45,12 @@ describe('UserServiceTest', () => {
         {
           provide: UserRepository,
           useValue: userRepo,
+        },
+        {
+          provide: AuditService,
+          useValue: {
+            record: jest.fn(),
+          },
         },
       ],
     }).compile();

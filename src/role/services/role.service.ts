@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { RoleRepository } from '../repositories/role.repository';
 import { PermissionRepository } from '../repositories/permission.repository';
+import { AuditService } from 'src/common/logging/audit.service';
 import {
   AssignPermissionsDto,
   CreateRoleDto,
@@ -12,10 +13,20 @@ export class RoleService {
   constructor(
     private readonly roleRepo: RoleRepository,
     private readonly permissionRepo: PermissionRepository,
+    private readonly audit: AuditService,
   ) {}
 
   async create(payload: CreateRoleDto) {
-    return this.roleRepo.create(payload);
+    const created = await this.roleRepo.create(payload);
+
+    this.audit.record({
+      action: 'create',
+      resource: 'role',
+      resourceId: created.id,
+      after: created,
+    });
+
+    return created;
   }
 
   async findAll() {
@@ -33,15 +44,33 @@ export class RoleService {
   }
 
   async update(id: string, payload: UpdateRoleDto) {
-    await this.findById(id);
+    const before = await this.findById(id);
+    const updated = await this.roleRepo.update(id, payload);
 
-    return this.roleRepo.update(id, payload);
+    this.audit.record({
+      action: 'update',
+      resource: 'role',
+      resourceId: id,
+      before,
+      after: updated,
+    });
+
+    return updated;
   }
 
   async remove(id: string) {
-    await this.findById(id);
+    const before = await this.findById(id);
+    const deleted = await this.roleRepo.delete(id);
 
-    return this.roleRepo.delete(id);
+    this.audit.record({
+      action: 'delete',
+      resource: 'role',
+      resourceId: id,
+      before,
+      after: deleted,
+    });
+
+    return deleted;
   }
 
   async assignPermissions(roleId: string, payload: AssignPermissionsDto) {
@@ -61,6 +90,20 @@ export class RoleService {
       }
     }
 
-    return this.roleRepo.assignPermissions(roleId, payload.permissions);
+    const assigned = await this.roleRepo.assignPermissions(
+      roleId,
+      payload.permissions,
+    );
+
+    this.audit.record({
+      action: 'assign_permissions',
+      resource: 'role',
+      resourceId: roleId,
+      after: {
+        permissions: payload.permissions,
+      },
+    });
+
+    return assigned;
   }
 }

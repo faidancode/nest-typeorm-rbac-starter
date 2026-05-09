@@ -66,6 +66,12 @@ export const EnvSchema = z.object({
 
   // Request ID header
   REQUEST_ID_HEADER: z.string().default('x-request-id'),
+
+  // Request timeout
+  REQUEST_TIMEOUT_MS: z
+    .string()
+    .transform((v) => parseInt(v, 10))
+    .default(30000),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
