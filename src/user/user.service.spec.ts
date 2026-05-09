@@ -5,6 +5,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { AuditService } from 'src/common/logging/audit.service';
+import { TransactionService } from 'src/common/transactions/transaction.service';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn(),
@@ -19,6 +20,7 @@ describe('UserServiceTest', () => {
       'create' | 'find' | 'findOne' | 'save' | 'softRemove' | 'findByEmail'
     >
   >;
+  let transaction: jest.Mocked<Pick<TransactionService, 'run'>>;
 
   const mockId = randomUUID();
   const mockUser = {
@@ -38,6 +40,9 @@ describe('UserServiceTest', () => {
       softRemove: jest.fn(),
       findByEmail: jest.fn(),
     };
+    transaction = {
+      run: jest.fn(async (work) => work({ getRepository: jest.fn().mockReturnValue(userRepo) } as any)),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -51,6 +56,10 @@ describe('UserServiceTest', () => {
           useValue: {
             record: jest.fn(),
           },
+        },
+        {
+          provide: TransactionService,
+          useValue: transaction,
         },
       ],
     }).compile();
@@ -81,13 +90,15 @@ describe('UserServiceTest', () => {
       };
 
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_pw');
-      userRepo.findByEmail.mockResolvedValue(null);
+      userRepo.findOne.mockResolvedValue(null);
       userRepo.create.mockReturnValue(mockUser as any);
       userRepo.save.mockResolvedValue(mockUser as any);
 
       const result = await service.create(payload);
 
-      expect(userRepo.findByEmail).toHaveBeenCalledWith(payload.email);
+      expect(userRepo.findOne).toHaveBeenCalledWith({
+        where: { email: payload.email },
+      });
       expect(bcrypt.hash).toHaveBeenCalledWith(payload.password, 10);
       expect(userRepo.save).toHaveBeenCalled();
       expect(result).toEqual(mockUser);
@@ -100,7 +111,7 @@ describe('UserServiceTest', () => {
         password: 'password123',
       };
 
-      userRepo.findByEmail.mockResolvedValue(mockUser as any);
+      userRepo.findOne.mockResolvedValue(mockUser as any);
 
       await expect(service.create(payload)).rejects.toThrow(ConflictException);
     });
@@ -128,8 +139,9 @@ describe('UserServiceTest', () => {
   describe('UserService_Update', () => {
     it('should update user successfully (Positive)', async () => {
       const updateDto = { email: 'new@example.com' };
-      userRepo.findOne.mockResolvedValueOnce(mockUser as any); // Untuk findOne internal
-      userRepo.findByEmail.mockResolvedValueOnce(null); // Cek email conflict
+      userRepo.findOne
+        .mockResolvedValueOnce(mockUser as any) // Untuk findOne internal
+        .mockResolvedValueOnce(null); // Cek email conflict
       userRepo.save.mockResolvedValue({ ...mockUser, ...updateDto } as any);
 
       const result = await service.update(mockId, updateDto);
@@ -138,8 +150,9 @@ describe('UserServiceTest', () => {
 
     it('should throw ConflictException if email already in use (Negative)', async () => {
       const updateDto = { email: 'existing@example.com' };
-      userRepo.findOne.mockResolvedValueOnce(mockUser as any);
-      userRepo.findByEmail.mockResolvedValueOnce({ id: 'other-id' } as any);
+      userRepo.findOne
+        .mockResolvedValueOnce(mockUser as any)
+        .mockResolvedValueOnce({ id: 'other-id' } as any);
 
       let resultError: any;
       try {

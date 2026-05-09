@@ -12,6 +12,7 @@ import { createRateLimitMiddleware } from './common/middleware/rate-limit.middle
 import { RequestLoggingInterceptor } from './common/logging/request-logging.interceptor';
 import { AppLoggerService } from './common/logging/app-logger.service';
 import { RateLimitService } from './common/rate-limit/rate-limit.service';
+import { IdempotencyInterceptor } from './common/idempotency/idempotency.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -40,6 +41,7 @@ async function bootstrap() {
   );
   app.useGlobalInterceptors(
     app.get(RequestLoggingInterceptor),
+    app.get(IdempotencyInterceptor),
     new ResponseEnvelopeInterceptor(),
   );
   app.useGlobalFilters(app.get(HttpExceptionFilter));

@@ -10,23 +10,28 @@ import type {
   UpdatePositionDto,
 } from './schemas/position.schemas';
 import { AuditService } from 'src/common/logging/audit.service';
+import { TransactionService } from 'src/common/transactions/transaction.service';
 
 @Injectable()
 export class PositionService {
   constructor(
     private readonly positionRepo: PositionRepository,
     private readonly audit: AuditService,
+    private readonly transaction: TransactionService,
   ) {}
 
   async create(data: CreatePositionDto): Promise<Position> {
-    const existing = await this.positionRepo.findOne({
-      where: { name: data.name },
+    const saved = await this.transaction.run(async (manager) => {
+      const repo = manager.getRepository(Position);
+      const existing = await repo.findOne({
+        where: { name: data.name },
+      });
+      if (existing) {
+        throw new ConflictException('Position name already exists');
+      }
+      const position = repo.create(data);
+      return repo.save(position);
     });
-    if (existing) {
-      throw new ConflictException('Position name already exists');
-    }
-    const position = this.positionRepo.create(data);
-    const saved = await this.positionRepo.save(position);
 
     this.audit.record({
       action: 'create',
@@ -53,17 +58,21 @@ export class PositionService {
   async update(id: string, data: UpdatePositionDto): Promise<Position> {
     const position = await this.findOne(id);
     const before = { ...position };
+    const saved = await this.transaction.run(async (manager) => {
+      const repo = manager.getRepository(Position);
 
-    if (data.name && data.name !== position.name) {
-      const existing = await this.positionRepo.findOne({
-        where: { name: data.name },
-      });
-      if (existing)
-        throw new ConflictException('New position name already exists');
-    }
+      if (data.name && data.name !== position.name) {
+        const existing = await repo.findOne({
+          where: { name: data.name },
+        });
+        if (existing) {
+          throw new ConflictException('New position name already exists');
+        }
+      }
 
-    Object.assign(position, data);
-    const saved = await this.positionRepo.save(position);
+      Object.assign(position, data);
+      return repo.save(position);
+    });
 
     this.audit.record({
       action: 'update',
@@ -78,12 +87,16 @@ export class PositionService {
 
   async remove(id: string): Promise<void> {
     const position = await this.findOne(id);
+    await this.transaction.run(async (manager) => {
+      const repo = manager.getRepository(Position);
+      await repo.softRemove(position);
+    });
+
     this.audit.record({
       action: 'delete',
       resource: 'position',
       resourceId: id,
       before: position,
     });
-    await this.positionRepo.softRemove(position);
   }
 }

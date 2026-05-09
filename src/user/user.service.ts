@@ -8,30 +8,34 @@ import { User } from './entities/user.entity';
 import * as bcrypt from 'bcrypt';
 import type { CreateUserDto, UpdateUserDto } from './schemas/user.schemas';
 import { AuditService } from 'src/common/logging/audit.service';
+import { TransactionService } from 'src/common/transactions/transaction.service';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly userRepo: UserRepository,
     private readonly audit: AuditService,
+    private readonly transaction: TransactionService,
   ) {}
 
   async create(data: CreateUserDto): Promise<User> {
-    const existing = await this.userRepo.findByEmail(data.email);
-    if (existing) {
-      throw new ConflictException('Email already in use');
-    }
-
     const passwordHash = await bcrypt.hash(data.password, 10);
+    const saved = await this.transaction.run(async (manager) => {
+      const repo = manager.getRepository(User);
+      const existing = await repo.findOne({ where: { email: data.email } });
+      if (existing) {
+        throw new ConflictException('Email already in use');
+      }
 
-    const user = this.userRepo.create({
-      name: data.name,
-      email: data.email,
-      passwordHash,
-      isActive: data.isActive ?? true,
+      const user = repo.create({
+        name: data.name,
+        email: data.email,
+        passwordHash,
+        isActive: data.isActive ?? true,
+      });
+
+      return repo.save(user);
     });
-
-    const saved = await this.userRepo.save(user);
 
     this.audit.record({
       action: 'create',
@@ -69,13 +73,19 @@ export class UserService {
       isActive: user.isActive,
     };
 
-    if (data.email && data.email !== user.email) {
-      const existing = await this.userRepo.findByEmail(data.email);
-      if (existing) throw new ConflictException('Email already in use');
-    }
+    const saved = await this.transaction.run(async (manager) => {
+      const repo = manager.getRepository(User);
 
-    Object.assign(user, data);
-    const saved = await this.userRepo.save(user);
+      if (data.email && data.email !== user.email) {
+        const existing = await repo.findOne({ where: { email: data.email } });
+        if (existing) {
+          throw new ConflictException('Email already in use');
+        }
+      }
+
+      Object.assign(user, data);
+      return repo.save(user);
+    });
 
     this.audit.record({
       action: 'update',
@@ -95,6 +105,11 @@ export class UserService {
 
   async remove(id: string): Promise<void> {
     const user = await this.findOne(id);
+    await this.transaction.run(async (manager) => {
+      const repo = manager.getRepository(User);
+      await repo.softRemove(user);
+    });
+
     this.audit.record({
       action: 'delete',
       resource: 'user',
@@ -106,6 +121,5 @@ export class UserService {
         isActive: user.isActive,
       },
     });
-    await this.userRepo.softRemove(user);
   }
 }

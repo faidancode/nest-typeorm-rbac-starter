@@ -1,6 +1,6 @@
-Checklist ini digunakan sebagai panduan membangun REST API yang
-**aman, konsisten, mudah di-debug, dan siap production**
-(tanpa overengineering).
+This checklist is used as a guide for building a REST API that is
+**secure, consistent, easy to debug, and production-ready**
+without overengineering.
 
 ---
 

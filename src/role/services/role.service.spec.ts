@@ -5,6 +5,7 @@ import { RoleRepository } from '../repositories/role.repository';
 import { PermissionRepository } from '../repositories/permission.repository';
 import { CreateRoleDto, UpdateRoleDto, AssignPermissionsDto } from '../schemas/role.schemas';
 import { AuditService } from 'src/common/logging/audit.service';
+import { TransactionService } from 'src/common/transactions/transaction.service';
 
 describe('RoleServiceTest', () => {
   let service: RoleService;
@@ -12,6 +13,7 @@ describe('RoleServiceTest', () => {
     Pick<RoleRepository, 'create' | 'findAllWithPermissions' | 'findByIdWithPermissions' | 'update' | 'delete' | 'assignPermissions'>
   >;
   let permissionRepo: jest.Mocked<Pick<PermissionRepository, 'checkPermissionScope'>>;
+  let transaction: jest.Mocked<Pick<TransactionService, 'run'>>;
 
   beforeEach(async () => {
     // Mocking Repository sesuai pola yang dilampirkan
@@ -26,6 +28,9 @@ describe('RoleServiceTest', () => {
 
     permissionRepo = {
       checkPermissionScope: jest.fn(),
+    };
+    transaction = {
+      run: jest.fn(async (work) => work({ getRepository: jest.fn() } as any)),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -44,6 +49,10 @@ describe('RoleServiceTest', () => {
           useValue: {
             record: jest.fn(),
           },
+        },
+        {
+          provide: TransactionService,
+          useValue: transaction,
         },
       ],
     }).compile();
@@ -64,7 +73,7 @@ describe('RoleServiceTest', () => {
 
       const result = await service.create(payload);
 
-      expect(roleRepo.create).toHaveBeenCalledWith(payload);
+      expect(roleRepo.create).toHaveBeenCalledWith(payload, expect.any(Object));
       expect(result).toHaveProperty('id', 'role-1');
     });
   });
@@ -115,7 +124,11 @@ describe('RoleServiceTest', () => {
       await service.assignPermissions(roleId, payload);
 
       expect(permissionRepo.checkPermissionScope).toHaveBeenCalledWith('perm-1', 'scope-1');
-      expect(roleRepo.assignPermissions).toHaveBeenCalledWith(roleId, payload.permissions);
+      expect(roleRepo.assignPermissions).toHaveBeenCalledWith(
+        roleId,
+        payload.permissions,
+        expect.any(Object),
+      );
     });
 
     describe('Negative Scenarios', () => {
@@ -144,7 +157,7 @@ describe('RoleServiceTest', () => {
 
       await service.remove('1');
 
-      expect(roleRepo.delete).toHaveBeenCalledWith('1');
+      expect(roleRepo.delete).toHaveBeenCalledWith('1', expect.any(Object));
     });
 
     it('should throw error if repository fails during deletion', async () => {

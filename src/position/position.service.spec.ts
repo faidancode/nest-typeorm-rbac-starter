@@ -4,6 +4,7 @@ import { PositionRepository } from './repositories/position.repository';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { AuditService } from 'src/common/logging/audit.service';
+import { TransactionService } from 'src/common/transactions/transaction.service';
 
 describe('PositionServiceTest', () => {
   let service: PositionService;
@@ -13,6 +14,7 @@ describe('PositionServiceTest', () => {
       'create' | 'save' | 'find' | 'findOne' | 'softRemove'
     >
   >;
+  let transaction: jest.Mocked<Pick<TransactionService, 'run'>>;
 
   const mockId = randomUUID();
   const mockPosition = {
@@ -32,6 +34,9 @@ describe('PositionServiceTest', () => {
       findOne: jest.fn(),
       softRemove: jest.fn(),
     };
+    transaction = {
+      run: jest.fn(async (work) => work({ getRepository: jest.fn().mockReturnValue(positionRepo) } as any)),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -45,6 +50,10 @@ describe('PositionServiceTest', () => {
           useValue: {
             record: jest.fn(),
           },
+        },
+        {
+          provide: TransactionService,
+          useValue: transaction,
         },
       ],
     }).compile();

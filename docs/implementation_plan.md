@@ -1,193 +1,190 @@
 # Implementation Plan
 
-Dokumen ini menyusun hasil analisis `docs/checklist.md` untuk memastikan API siap production.
-Fokusnya adalah memetakan apa yang sudah ada, apa yang masih parsial, dan apa yang perlu dibangun
-tanpa overengineering.
+This document summarizes the analysis of `docs/checklist.md` to keep the API production-ready.
+It tracks what is already in place, what is partial, and what still needs to be built without overengineering.
 
-## Ringkasan Status
+## Status Summary
 
-Legenda:
-- `Done` = sudah ada dan cukup jelas di codebase.
-- `Partial` = ada fondasi, tetapi belum lengkap atau belum konsisten.
-- `Todo` = belum ada implementasi yang relevan.
+Legend:
+- `Done` = present and reasonably complete in the codebase.
+- `Partial` = foundation exists, but the implementation is incomplete or inconsistent.
+- `Todo` = no meaningful implementation yet.
 
-| Area | Status | Catatan |
+| Area | Status | Notes |
 | --- | --- | --- |
-| API response envelope | Done | Sudah ada `ResponseEnvelopeInterceptor` dan helper response. |
-| Business error code | Done | Sudah ada kode error terpusat di exception filter untuk kasus umum. |
-| Versioning API | Done | Sudah aktif via URI versioning di bootstrap (`/v1`). |
-| JWT authentication | Done | `JwtStrategy`, `JwtAuthGuard`, dan login/refresh endpoint sudah ada. |
-| RBAC | Done | CASL guard dan policy check sudah diterapkan. |
-| Refresh token flow | Partial | Endpoint refresh ada, tetapi belum ada storage, rotation, atau revocation strategy. |
-| Secure cookie/header strategy | Partial | Token masih dikembalikan di body; belum ada pengaturan cookie httpOnly/secure. |
-| Request ID | Done | Sudah ada request ID middleware, request context, dan correlation ke log. |
-| Idempotency key | Todo | Belum ada mekanisme untuk request sensitif. |
-| Validation body/query/path | Done | Sudah ada `ZodValidationPipe`, `UuidSchema`, dan validasi seragam di controller utama. |
-| Pagination/filter/sort | Partial | Ada di employee list, belum seragam untuk resource lain. |
-| Centralized error handling | Done | Sudah ada exception filter terpusat yang membungkus error ke envelope seragam. |
-| Structured logging | Done | Sudah ada logger JSON dengan `requestId` dan `userId`. |
-| Transaction boundary | Partial | Sudah ada pada employee create/update, belum menjadi pola baku. |
-| Async/event processing | Todo | Belum ada consumer, event id, atau idempotent handler. |
-| Rate limiting | Done | Sudah ada global rate limit per IP dan limit lebih ketat untuk login. |
-| Timeout/context propagation | Partial | Sudah ada request timeout dan context request, tetapi belum ada cancellation propagation ke DB/async job. |
-| Audit log | Done | Sudah ada audit log business-level untuk aksi write penting. |
-| Config via env | Done | `ConfigModule.forRoot` dan schema validasi sudah ada. |
-| Startup config validation | Done | `validateEnv` menolak env yang tidak valid. |
-| Health/readiness endpoint | Done | Sudah ada `/health` dan `/ready`. |
-| Swagger/OpenAPI | Partial | Dependency dan flag config ada, tetapi bootstrap dokumentasi belum terlihat. |
-| Testing coverage | Partial | Unit dan controller test sudah ada, tetapi belum lengkap untuk production concerns. |
-| Graceful shutdown | Done | `enableShutdownHooks()` sudah diaktifkan di bootstrap. |
-| Docker-friendly startup | Partial | Dasar konfigurasi ada, tetapi bootstrap masih membaca `process.env` langsung di beberapa tempat. |
+| API response envelope | Done | `ResponseEnvelopeInterceptor` and response helpers are in place. |
+| Business error code | Done | Central error codes are available in the exception filter for common cases. |
+| API versioning | Done | URI versioning is enabled in bootstrap (`/v1`). |
+| JWT authentication | Done | `JwtStrategy`, `JwtAuthGuard`, and login/refresh endpoints already exist. |
+| RBAC | Done | CASL guards and policy checks are implemented. |
+| Refresh token flow | Partial | Refresh exists, but storage, rotation, and revocation are not implemented. |
+| Secure cookie/header strategy | Partial | Tokens are still returned in the response body; no HttpOnly/Secure cookie strategy yet. |
+| Request ID | Done | Request ID middleware, request context, and log correlation are in place. |
+| Idempotency key | Done | Idempotency interceptor is available for mutating requests with `Idempotency-Key`. |
+| Validation body/query/path | Done | `ZodValidationPipe`, `UuidSchema`, and consistent validation are used in main controllers. |
+| Pagination/filter/sort | Partial | Present for employee listing, but not standardized across all resources. |
+| Centralized error handling | Done | A global exception filter wraps errors into a consistent envelope. |
+| Structured logging | Done | JSON logging includes `requestId` and `userId`. |
+| Transaction boundary | Done | Transaction helper and transactional write flow are in place for the main write services. |
+| Async/event processing | Todo | No consumer, event ID, or idempotent handler yet. |
+| Rate limiting | Done | Global per-IP limits and stricter login limits are active. |
+| Timeout/context propagation | Partial | Request timeout and request context exist, but cancellation is not propagated to DB/async jobs. |
+| Audit log | Done | Business-level audit logging is available for critical write actions. |
+| Config via env | Done | `ConfigModule.forRoot` and schema validation are already set up. |
+| Startup config validation | Done | `validateEnv` fails fast on invalid environment variables. |
+| Health/readiness endpoint | Done | `/health` and `/ready` exist. |
+| Swagger/OpenAPI | Partial | Dependency and flag support exist, but bootstrap documentation is not wired up yet. |
+| Testing coverage | Partial | Unit and controller tests exist, but production-focused coverage is still incomplete. |
+| Graceful shutdown | Done | `enableShutdownHooks()` is enabled in bootstrap. |
+| Docker-friendly startup | Partial | Base configuration is there, but bootstrap still reads `process.env` directly in a few places. |
 
-## Temuan Utama
+## Key Findings
 
-1. Fondasi paling kuat saat ini ada di auth, RBAC, validasi env, dan envelope response.
-2. Gap terbesar untuk production readiness ada di observability, error handling, healthcheck, rate limit, dan request tracing.
-3. Validasi request sudah mulai rapi dengan Zod, tetapi belum menjadi standar global lewat pipe/interceptor yang konsisten.
-4. Transaksi sudah diterapkan pada sebagian write flow, namun belum dijadikan pola umum untuk semua operasi yang berisiko partial write.
-5. Swagger, healthcheck, dan logging belum terlihat di bootstrap utama, jadi tiga area ini perlu diprioritaskan.
+1. The strongest foundations are auth, RBAC, env validation, response envelopes, and now observability basics.
+2. The biggest remaining production gaps are Swagger, refresh-token hardening, pagination standardization, and async/event workflow support.
+3. Request validation is now consistent with Zod, but some areas still need broader request/response documentation.
+4. Transaction handling is now a pattern in the main write paths, reducing partial-write risk.
+5. Health checks, logging, and rate limiting are available, so the project is much closer to production readiness.
 
-## Target Kondisi Akhir
+## Target End State
 
-API dianggap production-ready setelah kondisi berikut terpenuhi:
-- Semua response sukses dan error mengikuti kontrak yang konsisten.
-- Request yang masuk tervalidasi sebelum menyentuh service logic.
-- Error internal tidak bocor ke client dan setiap error punya kode bisnis yang stabil.
-- Request bisa dilacak dengan `request_id` dari edge sampai log.
-- Endpoint kritikal terlindungi oleh rate limit dan strategi token yang jelas.
-- Setiap write flow yang penting memakai transaction boundary yang eksplisit.
-- Healthcheck, readiness, dan observability minimum tersedia.
-- Dokumentasi API bisa dipakai oleh consumer tanpa membaca source code.
+The API can be considered production-ready when:
+- all success and error responses follow a consistent contract,
+- incoming requests are validated before they reach service logic,
+- internal errors do not leak to clients and business error codes stay stable,
+- every request can be traced with `request_id`,
+- sensitive endpoints are protected by rate limits and a clear token strategy,
+- critical write paths use explicit transaction boundaries,
+- health/readiness and basic observability are available,
+- API documentation can be used without reading source code.
 
-## Roadmap Implementasi
+## Implementation Roadmap
 
-### Fase 1 - Stabilitas Dasar
+### Phase 1 - Base Stability
 
-Prioritas tertinggi. Tujuannya membuat API aman dipakai dan mudah dioperasikan.
+Highest priority. The goal is to make the API safe to run and easy to operate.
 
-1. Tambahkan bootstrap global di `src/main.ts`.
-   - Enable CORS dengan konfigurasi dari `AppConfig`.
-   - Tambahkan `ValidationPipe` global atau pipe berbasis Zod yang konsisten.
-   - Aktifkan `helmet`.
-   - Siapkan graceful shutdown hook.
-2. Tambahkan centralized exception filter.
-   - Map `HttpException` ke format error envelope yang konsisten.
-   - Sediakan business error code untuk kasus umum.
-   - Pastikan error internal tetap tersembunyi.
-3. Tambahkan request ID middleware.
-   - Generate `request_id` bila header tidak ada.
-   - Propagasi ke response header, log, dan request context.
-4. Rapikan startup config handling.
-   - Hindari `process.env.PORT` langsung di bootstrap.
-   - Gunakan `AppConfig` sebagai source of truth.
-   - Hapus log debug seperti `console.log('db config')`.
-5. Tambahkan health/readiness endpoint.
-   - `/health` untuk liveness.
-   - `/ready` untuk cek koneksi database.
+1. Add the global bootstrap in `src/main.ts`.
+   - Enable CORS from `AppConfig`.
+   - Add a consistent Zod-based validation approach.
+   - Enable `helmet`.
+   - Prepare graceful shutdown hooks.
+2. Add a centralized exception filter.
+   - Map `HttpException` to a consistent error envelope.
+   - Provide business error codes for common cases.
+   - Keep internal errors hidden.
+3. Add request ID middleware.
+   - Generate `request_id` when the header is missing.
+   - Propagate it to response headers, logs, and request context.
+4. Clean up startup config handling.
+   - Avoid reading `process.env.PORT` directly in bootstrap.
+   - Use `AppConfig` as the source of truth.
+   - Remove debug logs such as `console.log('db config')`.
+5. Add health/readiness endpoints.
+   - `/health` for liveness.
+   - `/ready` for database readiness.
 
-### Fase 2 - Contract, Validation, dan Auth Hardening
+### Phase 2 - Contract, Validation, and Auth Hardening
 
-Tujuannya membuat perilaku API konsisten untuk consumer.
+The goal is to keep the API behavior consistent for consumers.
 
-1. Standarisasi response contract untuk semua controller.
-   - Pastikan list endpoint mengembalikan `items` + `meta` secara seragam.
-   - Samakan format error response.
-2. Perluas validasi request.
-   - Pastikan body, query, dan path tervalidasi di semua resource.
-   - Tambahkan boundary validation untuk limit, page, enum, dan boolean coercion.
-3. Finalisasi auth flow.
-   - Tentukan strategi refresh token: body, cookie, atau hybrid.
-   - Tambahkan mekanisme rotation atau revocation jika diperlukan.
-   - Pastikan token expiry dan invalid token path terdokumentasi.
-4. Tambahkan versioning strategy.
-   - Gunakan `/v1` atau mekanisme Nest versioning.
-   - Tetapkan aturan backward-compatible change untuk endpoint publik.
-5. Tambahkan Swagger/OpenAPI bootstrap.
-   - Dokumentasikan auth, contoh request/response, dan error code.
-   - Pastikan dokumentasi mengikuti versioning.
+1. Standardize the response contract across controllers.
+   - Keep list endpoints returning `items` + `meta`.
+   - Normalize the error response format.
+2. Expand request validation.
+   - Validate body, query, and path parameters consistently.
+   - Add boundary checks for limit, page, enum, and boolean coercion.
+3. Finalize the auth flow.
+   - Decide whether refresh tokens live in body, cookie, or a hybrid flow.
+   - Add rotation or revocation if needed.
+   - Document token expiry and invalid-token behavior.
+4. Add an API versioning strategy.
+   - Use `/v1` or Nest versioning.
+   - Define backward-compatible change rules for public endpoints.
+5. Add Swagger/OpenAPI bootstrap.
+   - Document auth, request/response examples, and error codes.
+   - Keep docs aligned with versioning.
 
-### Fase 3 - Observability dan Abuse Protection
+### Phase 3 - Observability and Abuse Protection
 
-Tujuannya membuat API mudah dipantau dan lebih tahan terhadap misuse.
+The goal is to make the API easier to observe and harder to abuse.
 
 1. Implement structured logging.
-   - Gunakan logger terstruktur dengan level `info`, `warn`, dan `error`.
-   - Sertakan `request_id` dan `user_id` bila tersedia.
-2. Tambahkan rate limiting.
-   - Terapkan limit global per IP.
-   - Tambahkan limit yang lebih ketat untuk login dan endpoint sensitif.
-3. Tambahkan timeout dan context propagation.
-   - Tetapkan timeout untuk request HTTP.
-   - Propagasi context untuk operasi async yang lama.
-4. Tambahkan audit log business-level.
-   - Catat aksi kritikal seperti create/update/delete pada resource sensitif.
-   - Simpan siapa yang melakukan aksi, apa yang diubah, dan kapan terjadi.
+   - Use logs with `info`, `warn`, and `error` levels.
+   - Include `request_id` and `user_id` when available.
+2. Add rate limiting.
+   - Enforce global per-IP limits.
+   - Apply stricter limits to login and sensitive endpoints.
+3. Add timeout and context propagation.
+   - Set HTTP request timeouts.
+   - Propagate context for long-running async operations.
+4. Add business-level audit logging.
+   - Track critical create/update/delete actions.
+   - Store who performed the action, what changed, and when.
 
-### Fase 4 - Data Safety dan Consistency
+### Phase 4 - Data Safety and Consistency
 
-Tujuannya mencegah partial write dan membuat data flow lebih mudah diandalkan.
+The goal is to prevent partial writes and make data flows more reliable.
 
-1. Jadikan transaction boundary sebagai pola baku untuk write flow.
-   - Review semua create/update/delete yang melibatkan lebih dari satu write.
-   - Pastikan rollback bekerja untuk semua jalur error.
-2. Tambahkan idempotency key untuk operasi sensitif.
-   - Fokus pada endpoint yang bisa dipanggil ulang oleh client atau gateway.
-   - Simpan hasil request duplicate agar efek bisnis tidak terulang.
-3. Siapkan pola event processing jika async workflow mulai dipakai.
-   - Tambahkan unique event ID.
-   - Propagasi `request_id` ke message header.
-   - Pastikan consumer idempotent.
+1. Make transaction boundaries a standard pattern.
+   - Review every create/update/delete flow that touches more than one write.
+   - Ensure rollback works on every failure path.
+2. Add idempotency keys for sensitive operations.
+   - Focus on endpoints that can be retried by clients or gateways.
+   - Store duplicate request results so business effects are not repeated.
+3. Prepare event-processing patterns if async workflows are introduced.
+   - Add a unique event ID.
+   - Propagate `request_id` in message headers.
+   - Keep consumers idempotent.
 
-### Fase 5 - Testing dan Release Readiness
+### Phase 5 - Testing and Release Readiness
 
-Tujuannya memastikan perubahan aman dirilis dan dipertahankan.
+The goal is to keep the project safe to release and maintain.
 
-1. Tambahkan test untuk concern production.
-   - Error mapping test.
-   - Validation failure test.
-   - Healthcheck test.
-   - Rate limit test.
-   - Idempotency test jika fitur ditambahkan.
-2. Tambahkan e2e test untuk alur utama.
+1. Add tests for production concerns.
+   - Error mapping tests.
+   - Validation failure tests.
+   - Healthcheck tests.
+   - Rate limit tests.
+   - Idempotency tests, if the feature is added.
+2. Add end-to-end tests for the main flows.
    - Login.
    - Refresh token.
-   - CRUD resource utama.
-   - RBAC deny/allow.
-3. Rapikan deployment behavior.
-   - Pastikan startup log menandakan readiness.
-   - Pastikan shutdown tidak memutus request aktif secara mendadak.
-   - Pastikan konfigurasi tetap cocok untuk Docker dan CI/CD.
+   - Main CRUD flows.
+   - RBAC allow/deny scenarios.
+3. Polish deployment behavior.
+   - Ensure startup logs clearly indicate readiness.
+   - Ensure shutdown does not cut active requests abruptly.
+   - Keep the configuration Docker- and CI/CD-friendly.
 
-## Prioritas Implementasi
+## Recommended Order
 
-Urutan kerja yang disarankan:
+1. Phase 1
+2. Phase 2
+3. Phase 3
+4. Phase 4
+5. Phase 5
 
-1. Fase 1
-2. Fase 2
-3. Fase 3
-4. Fase 4
-5. Fase 5
+Why:
+- Phase 1 removes the biggest operational risks.
+- Phase 2 stabilizes the API contract for consumers.
+- Phase 3 improves diagnostics and abuse control.
+- Phase 4 strengthens integrity and workflow reliability.
+- Phase 5 keeps the changes sustainable over time.
 
-Alasannya:
-- Fase 1 menutup risiko paling besar di operasional produksi.
-- Fase 2 membuat kontrak API stabil untuk client.
-- Fase 3 meningkatkan kemampuan diagnosis dan kontrol abuse.
-- Fase 4 memperkuat integritas data dan workflow lanjutan.
-- Fase 5 memastikan semua perubahan bisa dipertahankan dalam jangka panjang.
+## Current Repo Notes
 
-## Catatan Implementasi Repo Saat Ini
+- `src/common/http/response.interceptor.ts` provides the response envelope base.
+- `src/config/env.schema.ts` validates env variables through schema.
+- `src/auth/` provides JWT auth and refresh endpoints.
+- `src/common/casl/` provides policy-based authorization.
+- `src/employee/employee.service.ts` demonstrates the transaction pattern for a more complex write flow.
+- `src/main.ts` now includes the operational bootstrap needed for production.
 
-- `src/common/http/response.interceptor.ts` sudah menjadi dasar response envelope.
-- `src/config/env.schema.ts` sudah memberi validasi env berbasis schema.
-- `src/auth/` sudah menyediakan autentikasi JWT dan refresh endpoint.
-- `src/common/casl/` sudah menyediakan authorization layer berbasis policy.
-- `src/employee/employee.service.ts` sudah menunjukkan pola transaksi yang benar untuk write flow kompleks.
-- `src/main.ts` masih terlalu minimal untuk kebutuhan production bootstrap.
+## Definition of Done
 
-## Definisi Selesai
-
-Implementasi dianggap selesai bila:
-- checklist prioritas tinggi berubah dari `Todo` / `Partial` menjadi `Done`.
-- bootstrap utama sudah mencakup security, validation, logging, dan readiness.
-- error response dan success response konsisten di seluruh API.
-- healthcheck, Swagger, dan release behavior sudah bisa dipakai di environment production.
+The implementation is considered complete when:
+- high-priority checklist items move from `Todo` / `Partial` to `Done`,
+- the bootstrap covers security, validation, logging, and readiness,
+- success and error responses are consistent everywhere,
+- healthcheck, Swagger, and release behavior are production-ready.

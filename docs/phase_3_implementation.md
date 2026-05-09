@@ -1,83 +1,74 @@
 # Phase 3 Implementation
 
-Dokumen ini merangkum hasil pengerjaan fase 3 untuk observability dan abuse protection.
+This document summarizes phase 3 work focused on observability and abuse protection.
 
-## Apa yang Sudah Dilakukan
+## What Was Done
 
-### 1. Structured logging ditambahkan
+### 1. Structured logging was added
 
-File utama:
+Files:
 - `src/common/logging/app-logger.service.ts`
 - `src/common/logging/logging.module.ts`
 - `src/common/logging/request-logging.interceptor.ts`
 - `src/common/http/http-exception.filter.ts`
 
-Yang ditambahkan:
-- Logger berbasis `winston` dengan output JSON.
-- Field log otomatis untuk `requestId` dan `userId`.
-- Log request sukses dengan metadata seperti method, path, status code, duration, dan IP.
-- Log error terstruktur untuk validation error, `HttpException`, dan error tak terduga.
+Added:
+- JSON logging through `winston`.
+- Automatic `requestId` and `userId` correlation.
+- Request logging with method, path, status, duration, and IP.
 
-Fungsi:
-- Membuat log mudah diproses oleh platform observability.
-- Memudahkan tracing satu request dari awal sampai akhir.
-- Menyediakan konteks yang cukup saat debugging production issue.
+Why it matters:
+- Makes logs easier to search and aggregate.
+- Improves debugging during incidents.
 
-### 2. Request ID dan user ID correlation diperkuat
+### 2. Request correlation was strengthened
 
-File utama:
+Files:
 - `src/common/context/request-context.service.ts`
 - `src/common/middleware/request-id.middleware.ts`
 - `src/common/logging/request-logging.interceptor.ts`
 
-Yang ditambahkan:
-- `requestId` tetap digenerate dari edge.
-- `userId` disimpan ke request context setelah auth guard berhasil.
-- Context ini dipakai oleh logger dan audit log.
+Added:
+- Request ID is generated at the edge.
+- User ID is stored in request context after auth.
+- The same context is reused by logs and audits.
 
-Fungsi:
-- Menghubungkan request log, error log, dan audit log ke satu identifier yang sama.
-- Memudahkan investigasi lintas service dan lintas layer.
+Why it matters:
+- Lets you trace a single request through the whole request path.
 
-### 3. Rate limiting ditambahkan
+### 3. Rate limiting was added
 
-File utama:
+Files:
 - `src/common/rate-limit/rate-limit.service.ts`
 - `src/common/rate-limit/rate-limit.module.ts`
 - `src/common/middleware/rate-limit.middleware.ts`
 
-Yang ditambahkan:
-- Rate limit global per IP.
-- Rate limit lebih ketat untuk endpoint login.
-- Header response seperti `x-rate-limit-limit`, `x-rate-limit-remaining`, dan `x-rate-limit-reset`.
-- Bypass untuk endpoint health/readiness.
+Added:
+- Global per-IP rate limiting.
+- Stricter limits for login.
+- Rate limit headers in responses.
+- Bypass for health and readiness endpoints.
 
-Fungsi:
-- Mengurangi risiko abuse dan brute-force.
-- Menahan traffic berlebihan sebelum mencapai service logic.
+Why it matters:
+- Reduces abuse and brute-force attempts.
 
-Catatan:
-- Implementasi ini masih in-memory, jadi cocok untuk single-instance atau starter project.
-- Jika nanti dijalankan di banyak instance, rate limit sebaiknya dipindah ke shared store seperti Redis.
+### 4. Request timeout was added
 
-### 4. Request timeout ditambahkan
-
-File utama:
+Files:
 - `src/common/middleware/request-timeout.middleware.ts`
 - `src/config/env.schema.ts`
 - `src/config/app.config.ts`
 
-Yang ditambahkan:
-- Timeout request configurable lewat `REQUEST_TIMEOUT_MS`.
-- Jika request melewati batas waktu, API mengembalikan `503 REQUEST_TIMEOUT`.
+Added:
+- Configurable timeout via `REQUEST_TIMEOUT_MS`.
+- `503 REQUEST_TIMEOUT` response for slow requests.
 
-Fungsi:
-- Mencegah request menggantung terlalu lama.
-- Membantu menjaga resource server tetap sehat saat ada handler lambat.
+Why it matters:
+- Prevents requests from hanging too long and consuming resources.
 
-### 5. Audit log business-level ditambahkan
+### 5. Audit logging was added
 
-File utama:
+Files:
 - `src/common/logging/audit.service.ts`
 - `src/department/department.service.ts`
 - `src/position/position.service.ts`
@@ -85,25 +76,23 @@ File utama:
 - `src/role/services/role.service.ts`
 - `src/employee/employee.service.ts`
 
-Yang ditambahkan:
-- Audit event untuk aksi `create`, `update`, `delete`, dan `assign_permissions`.
-- Audit log menyimpan resource, resourceId, actorId, requestId, before, dan after bila tersedia.
+Added:
+- Audit events for critical write actions.
+- Metadata such as actor, request ID, before/after, and resource IDs.
 
-Fungsi:
-- Memberi jejak bisnis untuk aksi-aksi penting.
-- Membantu investigasi perubahan data dan aktivitas user.
+Why it matters:
+- Provides a business-level trail for important changes.
 
-## Tips And Tricks
+## Tips and Tricks
 
-1. Kalau menambah endpoint write baru, panggil `AuditService.record()` di titik commit yang paling aman.
-2. Untuk data sensitif, audit cukup simpan field penting, bukan seluruh payload mentah.
-3. Kalau nanti aplikasi dipasang di multi-instance, pindahkan rate limit ke shared storage agar konsisten antar pod.
-4. Gunakan `requestId` sebagai correlation key saat membaca log dan audit log.
-5. Kalau ada endpoint yang memang panjang prosesnya, pertimbangkan menaikkan `REQUEST_TIMEOUT_MS` secara selektif, bukan global.
-6. Jika ingin menambah log baru, gunakan `AppLoggerService` supaya format tetap JSON dan otomatis membawa context request.
+1. Use `AppLoggerService` instead of `console.log`.
+2. Keep audit payloads minimal and focused on business meaning.
+3. Use `requestId` as the primary correlation key.
+4. Move rate limiting to a shared store later if the app becomes multi-instance.
+5. Tune timeout values per environment rather than assuming one global number fits all.
 
-## Catatan
+## Notes
 
-Fase 3 ini sudah mencakup observability minimum dan protection dasar.
-Fase berikutnya masih bisa fokus ke hardening data consistency, idempotency, dan testing production behavior.
+Phase 3 covers the operational baseline, but not async/event processing yet.
+That remains a future enhancement if the app starts using queues or brokers.
 

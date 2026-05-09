@@ -1,12 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, type EntityManager } from 'typeorm';
 
 @Injectable()
 export class RoleRepository {
   constructor(private readonly db: DataSource) {}
 
-  async create(payload: { name: string; description?: string }) {
-    const result = await this.db.query(
+  private executor(manager?: EntityManager) {
+    return manager ?? this.db;
+  }
+
+  async create(
+    payload: { name: string; description?: string },
+    manager?: EntityManager,
+  ) {
+    const result = await this.executor(manager).query(
       `
       INSERT INTO roles (name, description)
       OUTPUT INSERTED.*
@@ -32,8 +39,8 @@ export class RoleRepository {
     `);
   }
 
-  async findByIdWithPermissions(id: string) {
-    const rows = await this.db.query(
+  async findByIdWithPermissions(id: string, manager?: EntityManager) {
+    const rows = await this.executor(manager).query(
       `
       SELECT 
         r.id,
@@ -53,8 +60,12 @@ export class RoleRepository {
     return rows.length ? rows : null;
   }
 
-  async update(id: string, payload: any) {
-    await this.db.query(
+  async update(
+    id: string,
+    payload: any,
+    manager?: EntityManager,
+  ) {
+    await this.executor(manager).query(
       `
       UPDATE roles
       SET name = @1,
@@ -64,25 +75,29 @@ export class RoleRepository {
       [id, payload.name, payload.description ?? null],
     );
 
-    return this.findByIdWithPermissions(id);
+    return this.findByIdWithPermissions(id, manager);
   }
 
-  async delete(id: string) {
-    await this.db.query(`DELETE FROM roles WHERE id = @0`, [id]);
+  async delete(id: string, manager?: EntityManager) {
+    await this.executor(manager).query(`DELETE FROM roles WHERE id = @0`, [
+      id,
+    ]);
     return { success: true };
   }
 
   async assignPermissions(
     roleId: string,
     items: { permissionId: string; scopeId: string }[],
+    manager?: EntityManager,
   ) {
-    // clear existing
-    await this.db.query(`DELETE FROM role_permissions WHERE role_id = @0`, [
+    const exec = this.executor(manager);
+
+    await exec.query(`DELETE FROM role_permissions WHERE role_id = @0`, [
       roleId,
     ]);
 
     for (const item of items) {
-      await this.db.query(
+      await exec.query(
         `
         INSERT INTO role_permissions (role_id, permission_id, scope_id)
         VALUES (@0, @1, @2)

@@ -1,53 +1,40 @@
 # Phase 2 Implementation
 
-Dokumen ini merangkum hasil pengerjaan fase 2 untuk standardisasi contract dan validasi API.
+This document summarizes phase 2 work focused on contract consistency and validation hardening.
 
-## Apa yang Sudah Dilakukan
+## What Was Done
 
-### API versioning diaktifkan di bootstrap
+### 1. API versioning was enabled
 
-File utama:
+File:
 - `src/main.ts`
 
-Yang ditambahkan:
-- `app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })`
+Added:
+- URI versioning with a default version of `1`.
 
-Fungsi:
-- Semua route API sekarang berada di bawah versi URI yang konsisten, yaitu `/v1`.
-- Perubahan kontrak API di masa depan bisa dipisahkan ke `/v2` tanpa mematahkan consumer lama.
-- Memudahkan dokumentasi, testing, dan rollout bertahap antar versi.
+Why it matters:
+- Keeps future breaking changes isolated under a new version.
+- Makes release and documentation management easier.
 
-### Zod validation pipe dibuat reusable
+### 2. Zod validation was standardized
 
-File utama:
+Files:
 - `src/common/pipes/zod-validation.pipe.ts`
-
-Yang ditambahkan:
-- Pipe generik untuk parsing dan validasi payload dengan Zod.
-
-Fungsi:
-- Menghilangkan `Schema.parse(...)` berulang di controller.
-- Membuat validasi body dan query konsisten di seluruh module.
-- Menjaga controller tetap tipis dan fokus ke orchestration, bukan parsing.
-
-### Schema bersama untuk input umum ditambahkan
-
-File utama:
 - `src/common/schemas/common.schemas.ts`
 - `src/auth/schemas/auth.schemas.ts`
 
-Yang ditambahkan:
-- `UuidSchema` untuk validasi path parameter UUID.
-- `LoginSchema` dan `RefreshTokenSchema` untuk request auth yang eksplisit.
+Added:
+- Reusable `ZodValidationPipe`.
+- Shared `UuidSchema`.
+- Explicit auth schemas for login and refresh requests.
 
-Fungsi:
-- Menstandarkan validasi input yang dipakai lintas controller.
-- Mengurangi penggunaan `any` pada layer auth.
-- Menjadikan contract request lebih jelas untuk endpoint login dan refresh.
+Why it matters:
+- Removes repetitive `Schema.parse(...)` calls.
+- Makes validation behavior consistent across controllers.
 
-### Controller utama dirapikan ke pola Zod
+### 3. Main controllers were refactored to use Zod pipes
 
-File utama:
+Files:
 - `src/auth/controllers/auth.controller.ts`
 - `src/department/department.controller.ts`
 - `src/position/position.controller.ts`
@@ -55,34 +42,23 @@ File utama:
 - `src/employee/employee.controller.ts`
 - `src/role/controllers/role.controller.ts`
 
-Yang diubah:
-- Validasi body/query dipindahkan ke `ZodValidationPipe`.
-- Validasi path `id` dipindahkan ke `UuidSchema`.
-- Controller tidak lagi melakukan parsing manual dengan `Schema.parse(...)`.
+Added:
+- Body, query, and path validation now use the reusable Zod pipe.
+- UUID path parameters now use `UuidSchema`.
 
-Fungsi:
-- Mengurangi boilerplate validasi.
-- Menyamakan perilaku validasi di semua resource utama.
-- Membuat error validasi lebih mudah dilacak dan lebih konsisten.
+Why it matters:
+- Keeps controllers thin.
+- Standardizes input validation and error behavior.
 
-## Dampak Perilaku
+## Tips and Tricks
 
-Setelah versioning aktif:
-- endpoint lama seperti `/auth/login` berubah menjadi `/v1/auth/login`
-- endpoint resource seperti `/users` berubah menjadi `/v1/users`
-- healthcheck juga ikut ter-versioning jika tidak dikecualikan, sehingga menjadi `/v1/health` dan `/v1/ready`
+1. Use `ZodValidationPipe` for new body and query inputs.
+2. Use `UuidSchema` for UUID path parameters.
+3. Keep new endpoints under the same version unless the contract breaks.
+4. Update Swagger docs later to reflect `/v1`.
 
-## Tips And Tricks
+## Notes
 
-1. Gunakan versi baru hanya untuk breaking change.
-2. Kalau menambah endpoint baru yang masih kompatibel, tetap taruh di versi yang sama.
-3. Hindari memindahkan endpoint tanpa alasan kontrak, karena consumer akan ikut berubah.
-4. Saat menambah endpoint baru, pakai `ZodValidationPipe` supaya pola validasi tetap seragam.
-5. Untuk path parameter UUID, gunakan `UuidSchema` agar validasi tidak bergantung pada pipe terpisah.
-6. Saat nanti menambah Swagger, pastikan server URL dan path mengikuti `/v1`.
-7. Kalau butuh endpoint non-versioned untuk probe infra, gunakan controller atau route terpisah yang dibuat `VERSION_NEUTRAL`.
+Phase 2 currently focuses on versioning and validation.
+Swagger/OpenAPI and refresh-token hardening are still separate follow-up tasks.
 
-## Catatan
-
-Fase ini mencakup versioning API dan standardisasi validasi request berbasis Zod.
-Item fase 2 lain seperti Swagger/OpenAPI, hardening auth flow, dan dokumentasi contract response masih bisa dilanjutkan terpisah.

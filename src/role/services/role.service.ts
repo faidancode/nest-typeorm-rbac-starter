@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { RoleRepository } from '../repositories/role.repository';
 import { PermissionRepository } from '../repositories/permission.repository';
 import { AuditService } from 'src/common/logging/audit.service';
+import { TransactionService } from 'src/common/transactions/transaction.service';
 import {
   AssignPermissionsDto,
   CreateRoleDto,
@@ -14,10 +15,13 @@ export class RoleService {
     private readonly roleRepo: RoleRepository,
     private readonly permissionRepo: PermissionRepository,
     private readonly audit: AuditService,
+    private readonly transaction: TransactionService,
   ) {}
 
   async create(payload: CreateRoleDto) {
-    const created = await this.roleRepo.create(payload);
+    const created = await this.transaction.run((manager) =>
+      this.roleRepo.create(payload, manager),
+    );
 
     this.audit.record({
       action: 'create',
@@ -45,7 +49,9 @@ export class RoleService {
 
   async update(id: string, payload: UpdateRoleDto) {
     const before = await this.findById(id);
-    const updated = await this.roleRepo.update(id, payload);
+    const updated = await this.transaction.run((manager) =>
+      this.roleRepo.update(id, payload, manager),
+    );
 
     this.audit.record({
       action: 'update',
@@ -60,7 +66,9 @@ export class RoleService {
 
   async remove(id: string) {
     const before = await this.findById(id);
-    const deleted = await this.roleRepo.delete(id);
+    const deleted = await this.transaction.run((manager) =>
+      this.roleRepo.delete(id, manager),
+    );
 
     this.audit.record({
       action: 'delete',
@@ -90,9 +98,12 @@ export class RoleService {
       }
     }
 
-    const assigned = await this.roleRepo.assignPermissions(
-      roleId,
-      payload.permissions,
+    const assigned = await this.transaction.run(async (manager) =>
+      this.roleRepo.assignPermissions(
+        roleId,
+        payload.permissions,
+        manager,
+      ),
     );
 
     this.audit.record({

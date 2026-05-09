@@ -8,6 +8,8 @@ import { AppConfigModule } from './config/app-config.module';
 import { RequestContextModule } from './common/context/request-context.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { RateLimitModule } from './common/rate-limit/rate-limit.module';
+import { TransactionModule } from './common/transactions/transaction.module';
+import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { DepartmentsModule } from './department/department.module';
 import { RoleModule } from './role/role.module';
 import { AuthModule } from './auth/auth.module';
@@ -28,6 +30,8 @@ import { HttpExceptionFilter } from './common/http/http-exception.filter';
     RequestContextModule,
     LoggingModule,
     RateLimitModule,
+    TransactionModule,
+    IdempotencyModule,
     DatabaseModule,
     DepartmentsModule,
     RoleModule,
