@@ -15,6 +15,7 @@ import { CheckPolicies } from 'src/common/casl/check-policies.decorator';
 import { Action } from 'src/common/casl/action.enum';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import { UuidSchema } from 'src/common/schemas/common.schemas';
+import { RateLimit } from 'src/common/rate-limit/rate-limit.decorator';
 import {
   CreatePositionSchema,
   UpdatePositionSchema,
@@ -24,6 +25,7 @@ import {
 
 @Controller('positions')
 @UseGuards(JwtAuthGuard, PoliciesGuard)
+@RateLimit({ ttlMs: 60_000, limit: 30, scope: 'user' })
 export class PositionController {
   constructor(private readonly positionService: PositionService) {}
 

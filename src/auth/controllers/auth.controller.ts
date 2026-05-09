@@ -18,6 +18,7 @@ import {
   type RefreshTokenDto,
 } from '../schemas/auth.schemas';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
+import { RateLimit } from 'src/common/rate-limit/rate-limit.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -27,12 +28,14 @@ export class AuthController {
   ) {}
 
   @Post('login')
+  @RateLimit({ ttlMs: 60_000, limit: 5, scope: 'ip' })
   @HttpCode(HttpStatus.OK)
   async login(@Body(new ZodValidationPipe(LoginSchema)) dto: LoginDto) {
     return await this.authService.login(dto);
   }
 
   @Post('refresh')
+  @RateLimit({ ttlMs: 60_000, limit: 10, scope: 'ip' })
   @HttpCode(HttpStatus.OK)
   async refresh(
     @Body(new ZodValidationPipe(RefreshTokenSchema))

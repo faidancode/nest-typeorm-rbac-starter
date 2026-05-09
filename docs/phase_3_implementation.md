@@ -41,11 +41,14 @@ Why it matters:
 Files:
 - `src/common/rate-limit/rate-limit.service.ts`
 - `src/common/rate-limit/rate-limit.module.ts`
+- `src/common/rate-limit/rate-limit.decorator.ts`
+- `src/common/rate-limit/rate-limit.interceptor.ts`
 - `src/common/middleware/rate-limit.middleware.ts`
 
 Added:
 - Global per-IP rate limiting.
 - Stricter limits for login.
+- `@RateLimit()` support for controller-level and endpoint-level limits.
 - Rate limit headers in responses.
 - Bypass for health and readiness endpoints.
 
@@ -88,11 +91,11 @@ Why it matters:
 1. Use `AppLoggerService` instead of `console.log`.
 2. Keep audit payloads minimal and focused on business meaning.
 3. Use `requestId` as the primary correlation key.
-4. Move rate limiting to a shared store later if the app becomes multi-instance.
-5. Tune timeout values per environment rather than assuming one global number fits all.
+4. Use `@RateLimit()` on controllers or specific endpoints when you need tighter abuse protection.
+5. Move rate limiting to a shared store later if the app becomes multi-instance.
+6. Tune timeout values per environment rather than assuming one global number fits all.
 
 ## Notes
 
 Phase 3 covers the operational baseline, but not async/event processing yet.
 That remains a future enhancement if the app starts using queues or brokers.
-

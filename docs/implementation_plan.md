@@ -27,7 +27,7 @@ Legend:
 | Structured logging | Done | JSON logging includes `requestId` and `userId`. |
 | Transaction boundary | Done | Transaction helper and transactional write flow are in place for the main write services. |
 | Async/event processing | Todo | No consumer, event ID, or idempotent handler yet. |
-| Rate limiting | Done | Global per-IP limits and stricter login limits are active. |
+| Rate limiting | Done | Global per-IP limits are active, and `@RateLimit()` supports controller-level and endpoint-level overrides. |
 | Timeout/context propagation | Partial | Request timeout and request context exist, but cancellation is not propagated to DB/async jobs. |
 | Audit log | Done | Business-level audit logging is available for critical write actions. |
 | Config via env | Done | `ConfigModule.forRoot` and schema validation are already set up. |

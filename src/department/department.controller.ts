@@ -18,6 +18,7 @@ import { Action } from 'src/common/casl/action.enum';
 import { subject } from 'src/common/casl/subject.helper';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import { UuidSchema } from 'src/common/schemas/common.schemas';
+import { RateLimit } from 'src/common/rate-limit/rate-limit.decorator';
 import {
   CreateDepartmentSchema,
   UpdateDepartmentSchema,
@@ -28,6 +29,7 @@ import type { RequestWithAbility } from 'src/common/casl/request-with-ability';
 
 @Controller('departments')
 @UseGuards(JwtAuthGuard, PoliciesGuard)
+@RateLimit({ ttlMs: 60_000, limit: 30, scope: 'user' })
 export class DepartmentController {
   constructor(private readonly departmentService: DepartmentService) {}
 
