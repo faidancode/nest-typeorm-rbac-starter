@@ -34,7 +34,7 @@ Legend:
 | Startup config validation | Done | `validateEnv` fails fast on invalid environment variables. |
 | Health/readiness endpoint | Done | `/health` and `/ready` exist. |
 | Swagger/OpenAPI | Partial | Dependency and flag support exist, but bootstrap documentation is not wired up yet. |
-| Testing coverage | Partial | Unit and controller tests exist, but production-focused coverage is still incomplete. |
+| Testing coverage | Done | Production-focused unit tests and versioned e2e tests are now in place. |
 | Graceful shutdown | Done | `enableShutdownHooks()` is enabled in bootstrap. |
 | Docker-friendly startup | Partial | Base configuration is there, but bootstrap still reads `process.env` directly in a few places. |
 
