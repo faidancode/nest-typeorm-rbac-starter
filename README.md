@@ -2,6 +2,11 @@
 
 Production-oriented NestJS starter for an RBAC-based API with TypeORM, Zod validation, structured logging, request tracing, rate limiting, idempotency support, and SQL Server integration.
 
+![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=flat&logo=nestjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
+![TypeORM](https://img.shields.io/badge/TypeORM-FE0803?style=flat&logo=typeorm&logoColor=white)
+[![Microsoft SQL Server](https://custom-icon-badges.demolab.com/badge/Microsoft%20SQL%20Server-CC2927?logo=mssqlserver-white&logoColor=white)](#)
+
 ## Overview
 
 This project is a backend starter for a role-based access control system. It is designed to be a practical foundation for internal applications, admin panels, and CRUD-heavy business APIs.
