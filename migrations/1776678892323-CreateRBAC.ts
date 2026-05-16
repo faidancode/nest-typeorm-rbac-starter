@@ -46,6 +46,7 @@ export class CreateRBAC1776678892323 implements MigrationInterface {
         id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
         user_id UNIQUEIDENTIFIER NOT NULL,
         role_id UNIQUEIDENTIFIER NOT NULL,
+        created_at DATETIME2 DEFAULT GETUTCDATE(),
 
         CONSTRAINT uq_user_role UNIQUE (user_id, role_id),
 

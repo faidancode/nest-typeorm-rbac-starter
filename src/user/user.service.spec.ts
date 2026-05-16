@@ -4,8 +4,7 @@ import { UserRepository } from './repositories/user.repository';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import * as bcrypt from 'bcrypt';
-import { AuditService } from 'src/common/logging/audit.service';
-import { TransactionService } from 'src/common/transactions/transaction.service';
+import { RoleService } from 'src/role/services/role.service';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn(),
@@ -17,10 +16,17 @@ describe('UserServiceTest', () => {
   let userRepo: jest.Mocked<
     Pick<
       UserRepository,
-      'create' | 'find' | 'findOne' | 'save' | 'softRemove' | 'findByEmail'
+      | 'create'
+      | 'findAndCount'
+      | 'findOne'
+      | 'save'
+      | 'softRemove'
+      | 'findByEmail'
+      | 'findRolesByUserIds'
+      | 'assignRoles'
     >
   >;
-  let transaction: jest.Mocked<Pick<TransactionService, 'run'>>;
+  let roleService: jest.Mocked<Pick<RoleService, 'findById'>>;
 
   const mockId = randomUUID();
   const mockUser = {
@@ -34,14 +40,17 @@ describe('UserServiceTest', () => {
   beforeEach(async () => {
     userRepo = {
       create: jest.fn(),
-      find: jest.fn(),
+      findAndCount: jest.fn(),
       findOne: jest.fn(),
       save: jest.fn(),
       softRemove: jest.fn(),
       findByEmail: jest.fn(),
+      findRolesByUserIds: jest.fn(),
+      assignRoles: jest.fn(),
     };
-    transaction = {
-      run: jest.fn(async (work) => work({ getRepository: jest.fn().mockReturnValue(userRepo) } as any)),
+
+    roleService = {
+      findById: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -52,14 +61,8 @@ describe('UserServiceTest', () => {
           useValue: userRepo,
         },
         {
-          provide: AuditService,
-          useValue: {
-            record: jest.fn(),
-          },
-        },
-        {
-          provide: TransactionService,
-          useValue: transaction,
+          provide: RoleService,
+          useValue: roleService,
         },
       ],
     }).compile();
@@ -74,10 +77,39 @@ describe('UserServiceTest', () => {
   });
 
   describe('UserService_FindAll', () => {
-    it('should return an array of users (Positive)', async () => {
-      userRepo.find.mockResolvedValue([mockUser] as any);
-      const result = await service.findAll();
-      expect(result).toEqual([mockUser]);
+    it('should return users with pagination meta (Positive)', async () => {
+      const query = {
+        search: 'test',
+        isActive: true,
+        sort: 'email:asc',
+        page: 2,
+        limit: 5,
+      } as any;
+
+      userRepo.findAndCount.mockResolvedValue([[mockUser] as any, 6]);
+      userRepo.findRolesByUserIds.mockResolvedValue([]);
+      const result = await service.findAll(query);
+
+      expect(userRepo.findAndCount).toHaveBeenCalledWith({
+        where: [
+          { name: expect.any(Object), isActive: true },
+          { email: expect.any(Object), isActive: true },
+        ],
+        order: {
+          email: 'ASC',
+        },
+        take: 5,
+        skip: 5,
+      });
+      expect(result).toEqual({
+        items: [mockUser],
+        meta: {
+          page: 2,
+          limit: 5,
+          total: 6,
+          totalPages: 2,
+        },
+      });
     });
   });
 
@@ -90,15 +122,13 @@ describe('UserServiceTest', () => {
       };
 
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_pw');
-      userRepo.findOne.mockResolvedValue(null);
+      userRepo.findByEmail.mockResolvedValue(null);
       userRepo.create.mockReturnValue(mockUser as any);
       userRepo.save.mockResolvedValue(mockUser as any);
 
       const result = await service.create(payload);
 
-      expect(userRepo.findOne).toHaveBeenCalledWith({
-        where: { email: payload.email },
-      });
+      expect(userRepo.findByEmail).toHaveBeenCalledWith(payload.email);
       expect(bcrypt.hash).toHaveBeenCalledWith(payload.password, 10);
       expect(userRepo.save).toHaveBeenCalled();
       expect(result).toEqual(mockUser);
@@ -111,7 +141,7 @@ describe('UserServiceTest', () => {
         password: 'password123',
       };
 
-      userRepo.findOne.mockResolvedValue(mockUser as any);
+      userRepo.findByEmail.mockResolvedValue(mockUser as any);
 
       await expect(service.create(payload)).rejects.toThrow(ConflictException);
     });
@@ -139,9 +169,8 @@ describe('UserServiceTest', () => {
   describe('UserService_Update', () => {
     it('should update user successfully (Positive)', async () => {
       const updateDto = { email: 'new@example.com' };
-      userRepo.findOne
-        .mockResolvedValueOnce(mockUser as any) // Untuk findOne internal
-        .mockResolvedValueOnce(null); // Cek email conflict
+      userRepo.findOne.mockResolvedValueOnce(mockUser as any); // Untuk findOne internal
+      userRepo.findByEmail.mockResolvedValueOnce(null); // Cek email conflict
       userRepo.save.mockResolvedValue({ ...mockUser, ...updateDto } as any);
 
       const result = await service.update(mockId, updateDto);
@@ -150,9 +179,8 @@ describe('UserServiceTest', () => {
 
     it('should throw ConflictException if email already in use (Negative)', async () => {
       const updateDto = { email: 'existing@example.com' };
-      userRepo.findOne
-        .mockResolvedValueOnce(mockUser as any)
-        .mockResolvedValueOnce({ id: 'other-id' } as any);
+      userRepo.findOne.mockResolvedValueOnce(mockUser as any);
+      userRepo.findByEmail.mockResolvedValueOnce({ id: 'other-id' } as any);
 
       let resultError: any;
       try {
@@ -162,6 +190,48 @@ describe('UserServiceTest', () => {
       }
       expect(resultError).toBeInstanceOf(ConflictException);
       expect(userRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('UserService_AssignRole', () => {
+    it('should assign role to user successfully (Positive)', async () => {
+      const payload = { roleIds: [randomUUID(), randomUUID()] };
+      userRepo.findOne.mockResolvedValueOnce(mockUser as any);
+      roleService.findById.mockResolvedValueOnce({
+        id: payload.roleIds[0],
+      } as any);
+      roleService.findById.mockResolvedValueOnce({
+        id: payload.roleIds[1],
+      } as any);
+      userRepo.assignRoles.mockResolvedValue({ success: true } as any);
+
+      const result = await service.assignRole(mockId, payload);
+
+      expect(roleService.findById).toHaveBeenCalledTimes(2);
+      expect(roleService.findById).toHaveBeenNthCalledWith(
+        1,
+        payload.roleIds[0],
+      );
+      expect(roleService.findById).toHaveBeenNthCalledWith(
+        2,
+        payload.roleIds[1],
+      );
+      expect(userRepo.assignRoles).toHaveBeenCalledWith(
+        mockId,
+        payload.roleIds,
+      );
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should throw NotFoundException if role not found (Negative)', async () => {
+      const payload = { roleIds: [randomUUID()] };
+      userRepo.findOne.mockResolvedValueOnce(mockUser as any);
+      roleService.findById.mockRejectedValue(new NotFoundException());
+
+      await expect(service.assignRole(mockId, payload)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(userRepo.assignRoles).not.toHaveBeenCalled();
     });
   });
 

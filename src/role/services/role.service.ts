@@ -1,11 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { RoleRepository } from '../repositories/role.repository';
 import { PermissionRepository } from '../repositories/permission.repository';
-import { AuditService } from 'src/common/logging/audit.service';
-import { TransactionService } from 'src/common/transactions/transaction.service';
 import {
   AssignPermissionsDto,
   CreateRoleDto,
+  RolePermissionRow,
+  RoleSummary,
   UpdateRoleDto,
 } from '../schemas/role.schemas';
 
@@ -14,31 +14,29 @@ export class RoleService {
   constructor(
     private readonly roleRepo: RoleRepository,
     private readonly permissionRepo: PermissionRepository,
-    private readonly audit: AuditService,
-    private readonly transaction: TransactionService,
   ) {}
 
   async create(payload: CreateRoleDto) {
-    const created = await this.transaction.run((manager) =>
-      this.roleRepo.create(payload, manager),
-    );
-
-    this.audit.record({
-      action: 'create',
-      resource: 'role',
-      resourceId: created.id,
-      after: created,
-    });
-
-    return created;
+    return this.roleRepo.create(payload);
   }
 
   async findAll() {
-    return this.roleRepo.findAllWithPermissions();
+    const rows = await this.roleRepo.findAllWithPermissions();
+    return this.groupRoles(rows);
+  }
+
+  async findAllForSelect() {
+    return this.roleRepo.findAllForSelect();
   }
 
   async findById(id: string) {
-    const role = await this.roleRepo.findByIdWithPermissions(id);
+    const rows = await this.roleRepo.findByIdWithPermissions(id);
+
+    if (!rows) {
+      throw new NotFoundException('Role not found');
+    }
+
+    const [role] = this.groupRoles(rows);
 
     if (!role) {
       throw new NotFoundException('Role not found');
@@ -48,37 +46,17 @@ export class RoleService {
   }
 
   async update(id: string, payload: UpdateRoleDto) {
-    const before = await this.findById(id);
-    const updated = await this.transaction.run((manager) =>
-      this.roleRepo.update(id, payload, manager),
-    );
+    await this.findById(id);
 
-    this.audit.record({
-      action: 'update',
-      resource: 'role',
-      resourceId: id,
-      before,
-      after: updated,
-    });
+    await this.roleRepo.update(id, payload);
 
-    return updated;
+    return this.findById(id);
   }
 
   async remove(id: string) {
-    const before = await this.findById(id);
-    const deleted = await this.transaction.run((manager) =>
-      this.roleRepo.delete(id, manager),
-    );
+    await this.findById(id);
 
-    this.audit.record({
-      action: 'delete',
-      resource: 'role',
-      resourceId: id,
-      before,
-      after: deleted,
-    });
-
-    return deleted;
+    return this.roleRepo.delete(id);
   }
 
   async assignPermissions(roleId: string, payload: AssignPermissionsDto) {
@@ -98,23 +76,45 @@ export class RoleService {
       }
     }
 
-    const assigned = await this.transaction.run(async (manager) =>
-      this.roleRepo.assignPermissions(
-        roleId,
-        payload.permissions,
-        manager,
-      ),
-    );
+    return this.roleRepo.assignPermissions(roleId, payload.permissions);
+  }
 
-    this.audit.record({
-      action: 'assign_permissions',
-      resource: 'role',
-      resourceId: roleId,
-      after: {
-        permissions: payload.permissions,
-      },
-    });
+  private groupRoles(rows: RolePermissionRow[]): RoleSummary[] {
+    const roles = new Map<string, RoleSummary>();
 
-    return assigned;
+    for (const row of rows) {
+      if (!roles.has(row.role_id)) {
+        roles.set(row.role_id, {
+          role_id: row.role_id,
+          role_name: row.role_name,
+          role_description: row.role_description,
+          permissions: [],
+        });
+      }
+
+      if (row.permission_id && row.action && row.scope_id && row.scope) {
+        roles.get(row.role_id)?.permissions.push({
+          permission_id: row.permission_id,
+          action: row.action,
+          scope_id: row.scope_id,
+          scope: row.scope,
+          scope_priority: row.scope_priority,
+        });
+      }
+    }
+
+    return [...roles.values()].map((role) => ({
+      ...role,
+      permissions: role.permissions.sort((a, b) => {
+        const scopePriorityA = a.scope_priority ?? Number.MAX_SAFE_INTEGER;
+        const scopePriorityB = b.scope_priority ?? Number.MAX_SAFE_INTEGER;
+
+        if (scopePriorityA !== scopePriorityB) {
+          return scopePriorityA - scopePriorityB;
+        }
+
+        return a.action.localeCompare(b.action);
+      }),
+    }));
   }
 }

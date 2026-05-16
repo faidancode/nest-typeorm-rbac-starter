@@ -17,6 +17,6 @@ import { JwtAuthGuard } from 'src/auth/jwt.guard';
     PoliciesGuard,
     JwtAuthGuard,
   ],
-  exports: [PermissionRepository],
+  exports: [PermissionRepository, RoleService],
 })
 export class RoleModule {}

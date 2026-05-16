@@ -6,10 +6,12 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { PoliciesGuard } from 'src/common/casl/policies.guard';
 import { CaslAbilityFactory } from 'src/common/casl/casl-ability.factory';
+import { RoleService } from 'src/role/services/role.service';
 
 describe('UserControllerTest', () => {
   let controller: UserController;
   let service: jest.Mocked<UserService>;
+  let roleService: jest.Mocked<RoleService>;
 
   const mockId = randomUUID();
   const mockUser = { id: mockId, email: 'test@example.com' };
@@ -19,8 +21,13 @@ describe('UserControllerTest', () => {
       create: jest.fn(),
       findAll: jest.fn(),
       findOne: jest.fn(),
+      assignRole: jest.fn(),
       update: jest.fn(),
       remove: jest.fn(),
+    };
+
+    const roleServiceMock: Partial<Record<keyof RoleService, any>> = {
+      findAllForSelect: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -29,6 +36,10 @@ describe('UserControllerTest', () => {
         {
           provide: UserService,
           useValue: serviceMock,
+        },
+        {
+          provide: RoleService,
+          useValue: roleServiceMock,
         },
         {
           provide: JwtAuthGuard,
@@ -47,6 +58,7 @@ describe('UserControllerTest', () => {
 
     controller = module.get<UserController>(UserController);
     service = module.get(UserService) as jest.Mocked<UserService>;
+    roleService = module.get(RoleService) as jest.Mocked<RoleService>;
   });
 
   describe('Initialization', () => {
@@ -57,10 +69,60 @@ describe('UserControllerTest', () => {
 
   describe('UserController_FindAll', () => {
     it('should call service.findAll', async () => {
-      service.findAll.mockResolvedValue([mockUser] as any);
-      const result = await controller.findAll();
-      expect(result).toEqual([mockUser]);
-      expect(service.findAll).toHaveBeenCalled();
+      const query = {
+        search: 'test',
+        isActive: 'true',
+        sort: 'email:asc',
+        page: '2',
+        limit: '5',
+      };
+
+      service.findAll.mockResolvedValue({
+        items: [mockUser],
+        meta: {
+          page: 2,
+          limit: 5,
+          total: 1,
+          totalPages: 1,
+        },
+      } as any);
+      const result = await controller.findAll(query as any);
+
+      expect(service.findAll).toHaveBeenCalledWith({
+        search: 'test',
+        isActive: true,
+        sort: 'email:asc',
+        page: 2,
+        limit: 5,
+      });
+      expect(result).toEqual({
+        items: [mockUser],
+        meta: {
+          page: 2,
+          limit: 5,
+          total: 1,
+          totalPages: 1,
+        },
+      });
+    });
+  });
+
+  describe('UserController_FindRoles', () => {
+    it('should return a list of roles for select inputs', async () => {
+      const roles = [
+        {
+          role_id: 'role-1',
+          role_name: 'admin',
+          role_description: 'Full access',
+        },
+      ];
+
+      roleService.findAllForSelect.mockResolvedValue(roles as any);
+
+      const result = await controller.findRoles();
+
+      expect(roleService.findAllForSelect).toHaveBeenCalled();
+      expect(result).toEqual(roles);
     });
   });
 
@@ -107,6 +169,18 @@ describe('UserControllerTest', () => {
       await expect(controller.findOne(mockId)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('UserController_AssignRole', () => {
+    it('should assign role to user', async () => {
+      const payload = { roleIds: [randomUUID(), randomUUID()] };
+      service.assignRole.mockResolvedValue({ success: true } as any);
+
+      const result = await controller.assignRole(mockId, payload);
+
+      expect(service.assignRole).toHaveBeenCalledWith(mockId, payload);
+      expect(result).toEqual({ success: true });
     });
   });
 

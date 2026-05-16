@@ -24,7 +24,20 @@ describe('AuthControllerTest', () => {
   };
 
   const mockAbility = {
-    rules: [{ action: 'read', subject: 'user' }],
+    rules: [
+      { action: 'read', subject: 'user', conditions: undefined },
+      {
+        action: 'read',
+        subject: 'employee',
+        conditions: { departmentId: mockUserResponse.id },
+      },
+      {
+        action: 'read',
+        subject: 'employee',
+        conditions: { departmentId: mockUserResponse.id },
+      },
+      { action: 'update', subject: 'employee', conditions: {} },
+    ],
   };
 
   beforeEach(async () => {
@@ -93,19 +106,18 @@ describe('AuthControllerTest', () => {
       const refreshToken = 'valid-refresh-token';
       service.refreshAccessToken.mockResolvedValue(mockAuthResult as any);
 
-      const result = await controller.refresh({ refreshToken });
+      const result = await controller.refresh(refreshToken);
 
       expect(service.refreshAccessToken).toHaveBeenCalledWith(refreshToken);
       expect(result).toEqual(mockAuthResult);
     });
 
     it('should throw UnauthorizedException for invalid refresh token (Negative)', async () => {
-      const refreshToken = 'invalid-token';
       service.refreshAccessToken.mockRejectedValue(
         new UnauthorizedException('Invalid refresh token'),
       );
 
-      await expect(controller.refresh({ refreshToken })).rejects.toThrow(
+      await expect(controller.refresh('invalid-token')).rejects.toThrow(
         UnauthorizedException,
       );
     });
@@ -130,7 +142,7 @@ describe('AuthControllerTest', () => {
   });
 
   describe('AuthController_MePermissions', () => {
-    it('should return CASL rules for current user (Positive)', async () => {
+    it('should return grouped permissions for current user (Positive)', async () => {
       caslFactory.createForUser.mockResolvedValue(mockAbility as any);
 
       const result = await controller.getMyPermissions({
@@ -140,7 +152,19 @@ describe('AuthControllerTest', () => {
       expect(caslFactory.createForUser).toHaveBeenCalledWith({
         id: mockUserResponse.id,
       });
-      expect(result).toEqual(mockAbility.rules);
+      expect(result).toEqual([
+        {
+          resource: 'employee',
+          permissions: [
+            { action: 'read', scope: 'department' },
+            { action: 'update', scope: 'all' },
+          ],
+        },
+        {
+          resource: 'user',
+          permissions: [{ action: 'read', scope: 'all' }],
+        },
+      ]);
     });
   });
 });

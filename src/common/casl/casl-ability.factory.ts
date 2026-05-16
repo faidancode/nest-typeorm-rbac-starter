@@ -25,8 +25,17 @@ export class CaslAbilityFactory {
       const [resource, action] = perm.action.split('.');
 
       const conditions = this.buildConditions(perm.scope, user);
+      if (conditions === null) {
+        continue;
+      }
 
-      // 🔥 dynamic condition-based rule
+      // All scope means the permission is unconditional.
+      if (conditions === undefined) {
+        can(action as Action, resource as any);
+        continue;
+      }
+
+      // Dynamic condition-based rule for scoped permissions.
       can(action as Action, resource as any, conditions);
     }
 
@@ -35,10 +44,13 @@ export class CaslAbilityFactory {
     });
   }
 
-  private buildConditions(scope: string, user: any) {
+  private buildConditions(
+    scope: string,
+    user: any,
+  ): Record<string, unknown> | undefined | null {
     switch (scope) {
       case 'all':
-        return {};
+        return undefined;
 
       case 'department':
         return { departmentId: user.departmentId };
@@ -50,7 +62,7 @@ export class CaslAbilityFactory {
         return { id: user.id };
 
       default:
-        return {};
+        return null;
     }
   }
 }

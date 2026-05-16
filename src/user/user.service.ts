@@ -3,57 +3,129 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { ILike, type FindOptionsOrder, type FindOptionsWhere } from 'typeorm';
 import { UserRepository } from './repositories/user.repository';
 import { User } from './entities/user.entity';
 import * as bcrypt from 'bcrypt';
-import type { CreateUserDto, UpdateUserDto } from './schemas/user.schemas';
-import { AuditService } from 'src/common/logging/audit.service';
-import { TransactionService } from 'src/common/transactions/transaction.service';
+import { RoleService } from 'src/role/services/role.service';
+import {
+  createPaginationMeta,
+  type PaginatedResponse,
+} from 'src/common/http/response';
+import type {
+  AssignUserRoleDto,
+  CreateUserDto,
+  ListUserDto,
+  UpdateUserDto,
+  UserRoleSummary,
+} from './schemas/user.schemas';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly userRepo: UserRepository,
-    private readonly audit: AuditService,
-    private readonly transaction: TransactionService,
+    private readonly roleService: RoleService,
   ) {}
 
   async create(data: CreateUserDto): Promise<User> {
+    const existing = await this.userRepo.findByEmail(data.email);
+    if (existing) {
+      throw new ConflictException('Email already in use');
+    }
+
     const passwordHash = await bcrypt.hash(data.password, 10);
-    const saved = await this.transaction.run(async (manager) => {
-      const repo = manager.getRepository(User);
-      const existing = await repo.findOne({ where: { email: data.email } });
-      if (existing) {
-        throw new ConflictException('Email already in use');
-      }
 
-      const user = repo.create({
-        name: data.name,
-        email: data.email,
-        passwordHash,
-        isActive: data.isActive ?? true,
-      });
-
-      return repo.save(user);
+    const user = this.userRepo.create({
+      name: data.name,
+      email: data.email,
+      passwordHash,
+      isActive: data.isActive ?? true,
     });
 
-    this.audit.record({
-      action: 'create',
-      resource: 'user',
-      resourceId: saved.id,
-      after: {
-        id: saved.id,
-        name: saved.name,
-        email: saved.email,
-        isActive: saved.isActive,
-      },
-    });
-
-    return saved;
+    return await this.userRepo.save(user);
   }
 
-  async findAll(): Promise<User[]> {
-    return await this.userRepo.find();
+  private buildWhere(
+    query: ListUserDto,
+  ): FindOptionsWhere<User> | FindOptionsWhere<User>[] {
+    const { q, search, isActive } = query;
+    const term = (search ?? q)?.trim();
+
+    let where: FindOptionsWhere<User> | FindOptionsWhere<User>[] = {};
+
+    if (term && term.length > 0) {
+      const pattern = `%${term}%`;
+      where = [{ name: ILike(pattern) }, { email: ILike(pattern) }];
+    }
+
+    if (typeof isActive === 'boolean') {
+      if (Array.isArray(where)) {
+        where = where.map((condition) => ({ ...condition, isActive }));
+      } else {
+        where.isActive = isActive;
+      }
+    }
+
+    return where;
+  }
+
+  async findAll(
+    query: ListUserDto = {} as ListUserDto,
+  ): Promise<PaginatedResponse<User[]>> {
+    const { page = 1, limit = 10, sort = 'createdAt:desc' } = query;
+    const [sortField, sortDirRaw] = sort.split(':');
+    const sortDir = sortDirRaw?.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+    const allowedSortFields = [
+      'createdAt',
+      'updatedAt',
+      'name',
+      'email',
+    ] as const;
+    const orderField = allowedSortFields.includes(
+      sortField as (typeof allowedSortFields)[number],
+    )
+      ? (sortField as (typeof allowedSortFields)[number])
+      : 'createdAt';
+
+    const where = this.buildWhere(query);
+    const skip = (page - 1) * limit;
+    const order: FindOptionsOrder<User> = {
+      [orderField]: sortDir,
+    };
+
+    const [items, total] = await this.userRepo.findAndCount({
+      where,
+      order,
+      take: limit,
+      skip,
+    });
+
+    if (items.length > 0) {
+      const userIds = items.map((u) => u.id);
+      const rolesData = await this.userRepo.findRolesByUserIds(userIds);
+
+      const rolesMap = rolesData.reduce(
+        (acc, row) => {
+          if (!acc[row.user_id]) acc[row.user_id] = [];
+          acc[row.user_id].push({
+            id: row.role_id,
+            name: row.role_name,
+          });
+          return acc;
+        },
+        {} as Record<string, UserRoleSummary[]>,
+      );
+
+      items.forEach((user) => {
+        (user as any).roles = rolesMap[user.id] || [];
+      });
+    }
+
+    return {
+      items,
+      meta: createPaginationMeta(page, limit, total),
+    };
   }
 
   async findOne(id: string): Promise<User> {
@@ -66,60 +138,29 @@ export class UserService {
 
   async update(id: string, data: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
-    const before = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      isActive: user.isActive,
-    };
 
-    const saved = await this.transaction.run(async (manager) => {
-      const repo = manager.getRepository(User);
+    if (data.email && data.email !== user.email) {
+      const existing = await this.userRepo.findByEmail(data.email);
+      if (existing) throw new ConflictException('Email already in use');
+    }
 
-      if (data.email && data.email !== user.email) {
-        const existing = await repo.findOne({ where: { email: data.email } });
-        if (existing) {
-          throw new ConflictException('Email already in use');
-        }
-      }
+    Object.assign(user, data);
+    return await this.userRepo.save(user);
+  }
 
-      Object.assign(user, data);
-      return repo.save(user);
-    });
+  async assignRole(id: string, data: AssignUserRoleDto) {
+    await this.findOne(id);
+    const uniqueRoleIds = [...new Set(data.roleIds)];
 
-    this.audit.record({
-      action: 'update',
-      resource: 'user',
-      resourceId: id,
-      before,
-      after: {
-        id: saved.id,
-        name: saved.name,
-        email: saved.email,
-        isActive: saved.isActive,
-      },
-    });
+    await Promise.all(
+      uniqueRoleIds.map((roleId) => this.roleService.findById(roleId)),
+    );
 
-    return saved;
+    return this.userRepo.assignRoles(id, uniqueRoleIds);
   }
 
   async remove(id: string): Promise<void> {
     const user = await this.findOne(id);
-    await this.transaction.run(async (manager) => {
-      const repo = manager.getRepository(User);
-      await repo.softRemove(user);
-    });
-
-    this.audit.record({
-      action: 'delete',
-      resource: 'user',
-      resourceId: id,
-      before: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        isActive: user.isActive,
-      },
-    });
+    await this.userRepo.softRemove(user);
   }
 }
