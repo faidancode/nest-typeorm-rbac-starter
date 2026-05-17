@@ -2,18 +2,32 @@
 include .env
 
 MIGRATION_DIR=src/migrations
-DB_CONTAINER=mssql
+DB_CONTAINER=nest_starter_db
+APP_CONTAINER=nest_rbac_api_starter
 
 up:
-	docker-compose up -d
+	docker compose up -d --build
+
+up-db:
+	docker compose up -d mssql
 
 down:
-	docker-compose down
+	docker compose down
 
 destroy:
-	docker-compose down -v
+	docker compose down -v
+
+restart:
+	docker compose down
+	docker compose up -d --build
+
+build:
+	docker compose build
 
 logs:
+	docker logs -f $(APP_CONTAINER)
+
+logs-db:
 	docker logs -f $(DB_CONTAINER)
 
 wait-db:
@@ -53,7 +67,7 @@ setup:
 	@make wait-db
 	@make create-db
 	@make migrate-up
-	@echo "✅ MSSQL ready & migrations applied!"
+	@echo "MSSQL ready and migrations applied!"
 
 reset-db:
 	@make create-db
@@ -62,4 +76,10 @@ reset-db:
 dev:
 	pnpm start:dev
 
-.PHONY: up down destroy logs wait-db create-db migrate-up migrate-down migrate-create migrate-gen migrate-reset db-sync setup reset-db dev
+prod:
+	docker compose up -d --build
+
+app-shell:
+	docker exec -it $(APP_CONTAINER) sh
+
+.PHONY: up up-db down destroy restart build logs logs-db wait-db create-db migrate-up migrate-down migrate-create migrate-gen migrate-reset db-sync setup reset-db dev prod app-shell

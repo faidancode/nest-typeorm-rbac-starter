@@ -1,13 +1,11 @@
-version: "3.9"
-
 services:
   mssql:
     image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: nest_rbac_mssql_db
+    container_name: nest_starter_db
     env_file:
       - .env
     ports:
-      - "${DB_PORT}:1433"
+      - '${DB_PORT}:1433'
     environment:
       - ACCEPT_EULA=Y
       - MSSQL_SA_PASSWORD=${DB_DOCKER_PASSWORD}
@@ -17,11 +15,32 @@ services:
     networks:
       - app_net
     healthcheck:
-      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/1433"]
+      test: ['CMD', 'bash', '-c', 'echo > /dev/tcp/localhost/1433']
       interval: 10s
       timeout: 3s
       retries: 10
     restart: always
+
+  app:
+    container_name: nest_rbac_api_starter
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DB_HOST: mssql
+      DB_PORT: 1433
+      DATABASE_URL: 'sqlserver://sa:${DB_DOCKER_PASSWORD}@mssql:1433;database=${DB_DATABASE};encrypt=true;trustServerCertificate=true'
+    ports:
+      - '${PORT:-3000}:3000'
+    depends_on:
+      mssql:
+        condition: service_healthy
+    networks:
+      - app_net
+    restart: unless-stopped
 
 volumes:
   mssql_data:

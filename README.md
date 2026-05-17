@@ -118,10 +118,19 @@ npm install
 
 ### 2. Prepare the database
 
-The repository includes `docker-compose.yml` for local SQL Server.
+The repository includes `docker-compose.yml` for local SQL Server and the NestJS app.
 
 ```bash
-docker compose up -d
+docker compose up -d --build
+```
+
+Or use the Makefile shortcuts:
+
+```bash
+make up
+make down
+make logs
+make logs-db
 ```
 
 ### 3. Run migrations or seed data
@@ -135,6 +144,8 @@ pnpm run seed
 
 ### 4. Start the app
 
+Development:
+
 ```bash
 pnpm run start:dev
 ```
@@ -145,6 +156,14 @@ Production build:
 pnpm run build
 pnpm run start:prod
 ```
+
+Or run the production container directly:
+
+```bash
+docker compose up -d --build
+```
+
+The app container runs on `http://localhost:3000` by default.
 
 ## Environment Setup
 
@@ -168,6 +187,8 @@ JWT_REFRESH_EXPIRES_IN=7d
 COOKIE_SECRET=your-cookie-secret
 CORS_ORIGINS=http://localhost:3000,http://localhost:4200
 ```
+
+When running inside Docker Compose, the app container uses `DB_HOST=mssql` and `DB_PORT=1433` automatically. Keep the `localhost` values for local development outside Docker.
 
 Optional operational variables:
 
@@ -197,6 +218,12 @@ pnpm run test
 pnpm run test:e2e
 pnpm run test:cov
 pnpm run lint
+make up
+make down
+make logs
+make logs-db
+make prod
+make app-shell
 ```
 
 ## API Notes
