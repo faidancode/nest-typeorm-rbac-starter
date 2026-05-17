@@ -14,4 +14,4 @@ import { RoleModule } from 'src/role/role.module';
   providers: [UserService, UserRepository, JwtAuthGuard],
   exports: [UserService, UserRepository], // Export agar bisa dipakai di AuthModule
 })
-export class UsersModule {}
+export class UserModule {}

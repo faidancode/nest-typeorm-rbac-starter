@@ -18,6 +18,7 @@ import { PositionModule } from './position/position.module';
 import { EmployeeModule } from './employee/employee.module';
 import { HealthController } from './health/health.controller';
 import { HttpExceptionFilter } from './common/http/http-exception.filter';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { HttpExceptionFilter } from './common/http/http-exception.filter';
     UserModule,
     PositionModule,
     EmployeeModule,
+    DashboardModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, HttpExceptionFilter],
